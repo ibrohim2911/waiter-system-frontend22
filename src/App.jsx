@@ -9,13 +9,13 @@ function App() {
   const { token } = useAuth()
 
   return (
-    <div className="">
+    <div className="min-h-screen bg-zinc-900">
       {!token ? <Login /> :
         (
           <>
             <Routes>
               <Route path="/" element={<Orders />} />
-              <Route path="/create-order" element={<h1>Create Order</h1>} />
+              <Route path="/create-order" element={<h1 className="text-white p-4">Create Order</h1>} />
             </Routes>
             <BottomBar />
           </>
