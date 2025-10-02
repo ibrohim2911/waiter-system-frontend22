@@ -1,6 +1,6 @@
 
 import { useAuth } from "./context/AuthContext"
-import { Login, Orders } from "./views"
+import { Login, Orders, PlaceSelection } from "./views"
 import { BottomBar } from "./components"
 import { Routes, Route } from "react-router-dom"
 
@@ -15,7 +15,7 @@ function App() {
           <>
             <Routes>
               <Route path="/" element={<Orders />} />
-              <Route path="/create-order" element={<h1 className="text-white p-4">Create Order</h1>} />
+              <Route path="/create-order" element={<PlaceSelection />} />
             </Routes>
             <BottomBar />
           </>
