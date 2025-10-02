@@ -13,15 +13,17 @@ export function useOrders() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Fetch all orders
-  const getOrders = useCallback(async () => {
+  // Fetch all orders with pagination and filter
+  const getOrders = useCallback(async (params = {}) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetchOrders();
+      const res = await fetchOrders(params);
       setOrders(Array.isArray(res.data) ? res.data : (res.data.results || res.data.orders || []));
+      return res.data;
     } catch (err) {
       setError(err.message || "Error fetching orders");
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -88,7 +90,7 @@ export function useOrders() {
     }
   }, []);
 
-  return {
+  return {  
     orders,
     order,
     loading,

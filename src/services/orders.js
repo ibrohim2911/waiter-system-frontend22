@@ -1,8 +1,8 @@
 import api from './api';
 import { useCallback } from 'react';
 
-// Get all orders
-export const fetchOrders = () => api.get('/orders/');
+// Get all orders with optional params (pagination, status)
+export const fetchOrders = (params = {}) => api.get('/orders/', { params });
 
 // Get single order by id
 export const fetchOrder = (id) => api.get(`/orders/${id}/`);
