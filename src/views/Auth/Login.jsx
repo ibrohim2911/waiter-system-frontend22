@@ -1,8 +1,9 @@
 import { useFormik } from 'formik';
 import { useNavigate } from 'react-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { loginSchema } from '../../schemas';
 import { useLogin, usePinLogin } from '../../services/login';
+import api from '../../services/api';
 
 const Numpad = ({ onInput, onDelete, onClear }) => (
     <div className="grid grid-cols-3 gap-2 mt-4 w-full">

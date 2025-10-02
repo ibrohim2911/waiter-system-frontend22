@@ -26,7 +26,7 @@ const BottomBar = () => {
   const isActive = (path) => location.pathname === path;
 
   return (
-    <div className="fixed bottom-0 left-0 w-full bg-zinc-900 border-t border-zinc-800 flex justify-around items-center py-4 z-[1000]">
+    <div className="fixed bottom-0 left-0 w-full max-h-20 bg-zinc-900 border-t border-zinc-800 flex justify-around items-center py-1 z-[1000]">
       <Link
         to="/"
         className={`flex flex-col items-center text-base px-4 py-2 rounded-lg transition-all

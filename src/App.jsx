@@ -16,6 +16,7 @@ function App() {
             <Routes>
               <Route path="/" element={<Orders />} />
               <Route path="/create-order" element={<PlaceSelection />} />
+              <Route path="/order-details" element={<PlaceSelection />} />
             </Routes>
             <BottomBar />
           </>

@@ -1,9 +1,12 @@
 import {useNavigate} from "react-router-dom";
 import usePlaceSelection from "../../hooks/usePlaceSelection";
 import { LocationCard, TableCard } from "../../components";
+import { useOrders } from "../../hooks/useOrders";
+import { me as getMe } from "../../services/getMe";
 
 const PlaceSelection = () => {
 	const navigate = useNavigate();
+	const { addOrder } = useOrders();
 	const {
 		locations,
 		selectedLocation,
@@ -17,18 +20,30 @@ const PlaceSelection = () => {
 		getTableCountForLocation,
 	} = usePlaceSelection();
 
-	const handleTableSelect = table => {
+	const handleTableSelect = async table => {
 		// Only allow selection of available tables
 		if (!table.is_available) {
 			return;
 		}
-		
+		let me = getMe();
+		if (!me) {
+			navigate("/login");
+			return;
+		}
+		const order =  await addOrder({
+			table: table.id,
+			user: me.id,
+			order_status: "processing",
+			
+		})
+
 		selectTable(table);
-		// Navigate to next page (e.g., create order page)
-		navigate("/create-order", {
+		// Navigate to next page (e.g., order details page)
+		navigate("/order-details", {
 			state: {
 				selectedLocation,
 				selectedTable: table,
+				orderid: order.id,
 			},
 		});
 	};
