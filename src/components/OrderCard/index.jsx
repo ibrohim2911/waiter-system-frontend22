@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 
 const OrderCard = ({order}) => {
 	let sortedItems = {};
@@ -38,12 +39,15 @@ const OrderCard = ({order}) => {
 		sortedItems[itm.item_name]["quantity"] += parseFloat(itm["quantity"]);
 		sortedItems[itm.item_name]["total_price"] += parseFloat(itm["item_price"]) * parseFloat(itm["quantity"]);
 	});
-
+	const navigate = useNavigate();
 	return (
 		<div
 			className={`relative bg-zinc-800 text-zinc-100 rounded-lg shadow-lg p-4 my-2 w-full transition-all duration-300 hover:shadow-xl border-l-4 ${getStatusColor(
 				order.order_status
 			)} shadow-lg flex flex-col`}
+			onClick={() => {
+				navigate("/order-details", { state: { orderid: order.id } });
+			}}
 		>
 			{/* Glowing effect */}
 			<div
