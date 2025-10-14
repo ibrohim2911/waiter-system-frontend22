@@ -40,7 +40,7 @@ api.interceptors.response.use(
         if (!refreshToken) throw new Error('No refresh token');
 
         // Adjust the refresh endpoint as needed
-        const res = await axios.post(`${BASE_URL}/auth/refresh/`, {
+        const res = await axios.post(`${BASE_URL}auth/refresh/`, {
           refresh: refreshToken,
         });
 

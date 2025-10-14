@@ -1,11 +1,13 @@
   // Allow editing if order_status is 'processing' or 'pending'
   
+
   import React, { useEffect, useState } from "react";
   import Numpad from "../../components/Numpad";
   import { useParams, useNavigate, useLocation } from "react-router-dom";
   import { fetchOrder, updateOrder } from "../../services/orders";
-  import { createOrderItem } from "../../services/orderItems";
+  import { createOrderItem, updateOrderItem, deleteOrderItem } from "../../services/orderItems";
   import api from "../../services/api";
+  import { me } from "../../services/getMe";
   
   const categories = [
   { key: "frequent", label: "FREQUENTLY USED" },
@@ -21,7 +23,9 @@ export default function OrderEditPage() {
   // Local state for new order items to be added
   const [newOrderItems, setNewOrderItems] = useState([]);
   const [numpad, setNumpad] = useState({ open: false, itemKey: null, value: "" });
-  
+  // Track local edits to saved order items: { id, quantity, deleted }
+  const [pendingEdits, setPendingEdits] = useState([]);
+
   const location = useLocation();
   const navigate = useNavigate();
   const params = useParams();
@@ -30,19 +34,29 @@ export default function OrderEditPage() {
   const [tables, setTables] = useState([]);
   const [activeTab, setActiveTab] = useState(categories[0].key);
   const [search, setSearch] = useState("");
+  const [user, setUser] = useState(null);
 
   // Get commission from table details if available (after order is defined)
   const commission = order && order.table_details && order.table_details.commission
-  ? Number(order.table_details.commission)
-  : 0;
-  
+    ? Number(order.table_details.commission)
+    : 0;
+
   // Get order id from navigation state or URL param
   const id = location.state?.orderid || params.orderid;
-  
+
   // Debug logging
-  console.log("OrderEditPage: id=", id, "order=", order);
-  
-  const isEditable = order && order.order_status === 'processing';
+  console.log("OrderEditPage: id=", id, "order=", order, "user=", user);
+
+  // Fetch user info on mount
+  useEffect(() => {
+    me().then(setUser);
+  }, []);
+
+  // isEditable: waiter can edit only if processing, non-waiter can edit if processing or pending
+  const isEditable = order && user && (
+    (user.role === 'waiter' && order.order_status === 'processing') ||
+    (user.role !== 'waiter' && (order.order_status === 'processing' || order.order_status === 'pending'))
+  );
   useEffect(() => {
     if (!id) return;
     fetchOrder(id)
@@ -78,20 +92,19 @@ export default function OrderEditPage() {
     return Math.round(withCommission);
   }, [calcSubtotal, commission]);
 
-  // Group saved and new order items separately for display
-  const groupedSavedOrderItems = React.useMemo(() => {
+  // Apply pendingEdits to saved order items for display (no grouping)
+  const displayedSavedOrderItems = React.useMemo(() => {
     if (!order || !order.items) return [];
-    const map = {};
-    order.items.forEach(item => {
-      const key = `${item.item_name}__${item.item_price}`;
-      if (!map[key]) {
-        map[key] = { ...item, quantity: 0, total_price: 0 };
+    // Apply edits
+    return order.items.map(item => {
+      const edit = pendingEdits.find(e => e.id === item.id);
+      if (edit) {
+        if (edit.deleted) return null;
+        return { ...item, quantity: edit.quantity };
       }
-      map[key].quantity += Number(item.quantity);
-      map[key].total_price += Number(item.item_price) * Number(item.quantity);
-    });
-    return Object.values(map);
-  }, [order]);
+      return item;
+    }).filter(Boolean);
+  }, [order, pendingEdits]);
 
   const groupedNewOrderItems = React.useMemo(() => {
     if (!newOrderItems.length) return [];
@@ -181,6 +194,22 @@ export default function OrderEditPage() {
       for (const item of newOrderItems) {
         await createOrderItem(order.id, item.menu_item, item.quantity);
       }
+      // Apply pending edits to saved order items
+      for (const edit of pendingEdits) {
+        if (edit.deleted) {
+          await deleteOrderItem(edit.id);
+        } else if (typeof edit.quantity === 'number') {
+          // Find the original item to get menu_item
+          const original = order.items.find(i => i.id === edit.id);
+          if (original) {
+            await updateOrderItem(edit.id, {
+              order: order.id,
+              menu_item: original.menu_item,
+              quantity: edit.quantity
+            });
+          }
+        }
+      }
       // Optionally, update order details if needed (guests, table, etc)
       await updateOrder(order.id, {
         ...order,
@@ -188,6 +217,7 @@ export default function OrderEditPage() {
         guests: order.guests || 4
       });
       setNewOrderItems([]);
+      setPendingEdits([]);
       navigate("/");
     } catch (err) {
       console.error("Save failed", err);
@@ -240,20 +270,74 @@ export default function OrderEditPage() {
           </div>
           <div className="flex-1 overflow-y-auto px-4 py-2">
             {/* List order items */}
-            {groupedSavedOrderItems.length === 0 && groupedNewOrderItems.length === 0 ? (
+            {displayedSavedOrderItems.length === 0 && groupedNewOrderItems.length === 0 ? (
               <div className="text-zinc-500 text-center py-8">No items in order.</div>
             ) : (
               <>
-                {groupedSavedOrderItems.length > 0 && (
+                {displayedSavedOrderItems.length > 0 && (
                   <ul className="space-y-2 mb-4">
-                    {groupedSavedOrderItems.map(item => (
-                      <li key={"saved-" + item.item_name + '__' + item.item_price} className="flex items-center justify-between bg-zinc-800 rounded-lg shadow-sm px-3 py-2 border border-zinc-700">
+                    {displayedSavedOrderItems.map(item => (
+                      <li key={"saved-" + item.id} className="flex items-center justify-between bg-zinc-800 rounded-lg shadow-sm px-3 py-2 border border-zinc-700">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-zinc-100 truncate max-w-[110px]">{item.item_name}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-zinc-200">{item.total_price} so'm</span>
-                          <span className="inline-block bg-blue-900 text-blue-200 text-base font-bold rounded-full px-3 py-1">x{item.quantity}</span>
+                          <span className="font-semibold text-zinc-200">{Number(item.item_price) * Number(item.quantity)} so'm</span>
+                          {/* Editable controls for non-waiter users */}
+                          {user && user.role !== 'waiter' && isEditable ? (
+                            <>
+                              <button
+                                className="bg-zinc-700 text-zinc-200 rounded-full w-8 h-8 flex items-center justify-center text-lg font-bold hover:bg-blue-700 disabled:opacity-50"
+                                onClick={() => {
+                                  const qty = item.quantity;
+                                  if (qty > 1) {
+                                    setPendingEdits(prev => {
+                                      const exists = prev.find(e => e.id === item.id);
+                                      if (exists) {
+                                        return prev.map(e => e.id === item.id ? { ...e, quantity: qty - 1 } : e);
+                                      } else {
+                                        return [...prev, { id: item.id, quantity: qty - 1 }];
+                                      }
+                                    });
+                                  } else if (qty === 1) {
+                                    setPendingEdits(prev => {
+                                      return [...prev.filter(e => e.id !== item.id), { id: item.id, deleted: true }];
+                                    });
+                                  }
+                                }}
+                              >-</button>
+                              <span
+                                className="inline-block bg-blue-900 text-blue-200 text-base font-bold rounded-full px-3 py-1 cursor-pointer select-none"
+                                onClick={() => {
+                                  setNumpad({ open: true, itemKey: 'saved-' + item.id, value: String(item.quantity) });
+                                }}
+                              >
+                                x{item.quantity}
+                              </span>
+                              <button
+                                className="bg-zinc-700 text-zinc-200 rounded-full w-8 h-8 flex items-center justify-center text-lg font-bold hover:bg-blue-700 disabled:opacity-50"
+                                onClick={() => {
+                                  const qty = item.quantity;
+                                  setPendingEdits(prev => {
+                                    const exists = prev.find(e => e.id === item.id);
+                                    if (exists) {
+                                      return prev.map(e => e.id === item.id ? { ...e, quantity: qty + 1 } : e);
+                                    } else {
+                                      return [...prev, { id: item.id, quantity: qty + 1 }];
+                                    }
+                                  });
+                                }}
+                              >+</button>
+                              <button
+                                onClick={() => {
+                                  setPendingEdits(prev => [...prev.filter(e => e.id !== item.id), { id: item.id, deleted: true }]);
+                                }}
+                                className="text-red-400 hover:text-red-600 text-lg px-3 py-1 rounded transition"
+                              >✕</button>
+                            </>
+                          ) : (
+                            <span className="inline-block bg-blue-900 text-blue-200 text-base font-bold rounded-full px-3 py-1">x{item.quantity}</span>
+                          )}
                         </div>
                       </li>
                     ))}
@@ -307,11 +391,29 @@ export default function OrderEditPage() {
             // Save value to item if valid
             const val = parseFloat(numpad.value);
             if (!isNaN(val) && val > 0) {
-              setNewOrderItems(prev => prev.map(i =>
-                (i.item_name + '__' + i.item_price) === numpad.itemKey
-                  ? { ...i, quantity: val }
-                  : i
-              ));
+              // Saved order item
+              if (String(numpad.itemKey).startsWith('saved-')) {
+                const itemId = Number(numpad.itemKey.replace('saved-', ''));
+                const target = order.items.find(i => i.id === itemId);
+
+                if (target) {
+                  setPendingEdits(prev => {
+                    const exists = prev.find(e => e.id === target.id);
+                    if (exists) {
+                      return prev.map(e => e.id === target.id ? { ...e, quantity: val } : e);
+                    } else {
+                      return [...prev, { id: target.id, quantity: val }];
+                    }
+                  });
+                }
+              } else {
+                // New order item
+                setNewOrderItems(prev => prev.map(i =>
+                  (i.item_name + '__' + i.item_price) === numpad.itemKey
+                    ? { ...i, quantity: val }
+                    : i
+                ));
+              }
             }
             setNumpad({ open: false, itemKey: null, value: "" });
           }}
@@ -365,13 +467,14 @@ export default function OrderEditPage() {
             </div>
           </div>
           <div className="flex gap-2 p-2 border-t border-zinc-800 bg-zinc-800">
-            <button className="flex-1 py-2 bg-red-700 text-zinc-100 rounded font-bold hover:bg-red-600 transition disabled:opacity-50" onClick={() => isEditable && setNewOrderItems([])} disabled={!isEditable}>× Clear</button>
-            <button className="flex-1 py-2 bg-blue-700 text-zinc-100 rounded font-bold flex items-center justify-center gap-1 hover:bg-blue-600 transition disabled:opacity-50" onClick={isEditable ? handleSave : undefined} disabled={!isEditable}>
+            <button className="flex-1 py-3 bg-red-700 text-zinc-100 rounded-lg font-bold text-base hover:bg-red-600 transition disabled:opacity-50" onClick={() => isEditable && setNewOrderItems([])} disabled={!isEditable}>× Clear</button>
+            <button className="flex-1 py-3 bg-blue-700 text-zinc-100 rounded-lg font-bold text-base flex items-center justify-center gap-2 hover:bg-blue-600 transition disabled:opacity-50" onClick={isEditable ? handleSave : undefined} disabled={!isEditable}>
               <span role="img" aria-label="save">💾</span> Save
             </button>
+            {/* Precheque for processing orders */}
             {order.order_status === 'processing' && (
               <button
-                className="flex-1 py-2 bg-yellow-600 text-zinc-900 rounded font-bold flex items-center justify-center gap-1 hover:bg-yellow-500 transition"
+                className="flex-1 py-3 bg-yellow-600 text-zinc-900 rounded-lg font-bold text-base flex items-center justify-center gap-2 hover:bg-yellow-500 transition"
                 onClick={async () => {
                   await updateOrder(order.id, { ...order, order_status: 'pending' });
                   setOrder({ ...order, order_status: 'pending' });
@@ -379,6 +482,33 @@ export default function OrderEditPage() {
               >
                 <span role="img" aria-label="precheque">🧾</span> Precheque
               </button>
+            )}
+            {/* Status change controls for non-waiters */}
+            {user && user.role !== 'waiter' && (
+              <>
+                {order.order_status !== 'completed' && (
+                  <button
+                    className="flex-1 py-3 bg-green-700 text-zinc-100 rounded-lg font-bold text-base flex items-center justify-center gap-2 hover:bg-green-600 transition"
+                    onClick={async () => {
+                      await updateOrder(order.id, { ...order, order_status: 'completed' });
+                      setOrder({ ...order, order_status: 'completed' });
+                    }}
+                  >
+                    <span role="img" aria-label="close">✅</span> Close Order
+                  </button>
+                )}
+                {order.order_status !== 'processing' && (
+                  <button
+                    className="flex-1 py-3 bg-blue-800 text-zinc-100 rounded-lg font-bold text-base flex items-center justify-center gap-2 hover:bg-blue-700 transition"
+                    onClick={async () => {
+                      await updateOrder(order.id, { ...order, order_status: 'processing' });
+                      setOrder({ ...order, order_status: 'processing' });
+                    }}
+                  >
+                    <span role="img" aria-label="open">🔓</span> Open Order
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -398,12 +528,25 @@ export default function OrderEditPage() {
           </div>
           {/* Search */}
           <div className="p-4 border-b border-zinc-800 bg-zinc-900">
-            <input
-              className="w-full p-2 rounded border border-zinc-700 bg-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
-              placeholder="Search..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
+            <div className="relative">
+              <input
+                className="w-full p-2 rounded border border-zinc-700 bg-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-400 pr-10"
+                placeholder="Search..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+              {search && (
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-red-400 text-lg px-1"
+                  onClick={() => setSearch("")}
+                  tabIndex={0}
+                  aria-label="Clear search"
+                >
+                  ×
+                </button>
+              )}
+            </div>
           </div>
           {/* Menu items grid */}
           <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2 p-4 bg-zinc-900 overflow-y-auto">

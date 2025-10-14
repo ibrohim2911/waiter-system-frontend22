@@ -59,11 +59,11 @@ const OrderCard = ({order}) => {
 			{/* Header */}
 			<div className="flex justify-between items-center mb-3 pb-2 border-b border-zinc-600">
 				<div className="flex flex-col">
-					<h3 className="text-base font-bold text-zinc-100">
-						Order #{order.id}
-					</h3>
+					<span>
+						{order.user_name}
+					</span>
 					<span
-						className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full mt-1 ${
+						className={`inline-block px-2 py-0.5 text-xs text-zinc-300 font-medium rounded-full mt-1 ${
 							order.order_status === "pending"
 								? "bg-yellow-900 text-yellow-200"
 								: order.order_status === "in_progress"
@@ -78,7 +78,7 @@ const OrderCard = ({order}) => {
 					</span>
 				</div>
 				<div className="text-right">
-					<p className="text-xs text-zinc-400">Table</p>
+
 					<p className="font-semibold text-base text-zinc-100">
 						{order.table_details?.name || order.table}
 					</p>
@@ -90,22 +90,13 @@ const OrderCard = ({order}) => {
 				</div>
 			</div>
 
-			{/* Customer Info */}
-			<div className="mb-3 flex items-center justify-between">
-				<p className="text-xs text-zinc-400">Customer</p>
-				<p className="font-medium text-sm text-zinc-100">
-					{order.user_name || `User #${order.user}`}
-				</p>
-			</div>
 
 			{/* Order Items */}
 			<div className="mb-3 h-32 min-h-32">
-				<p className="text-xs font-medium text-zinc-300 mb-1">Items</p>
 				<div className="bg-zinc-700 rounded-md p-2 overflow-y-scroll no-scrollbar h-full">
 					{order.items && order.items.length > 0 ? (
 						<ul className="space-y-0.5">
 							{Object.keys(sortedItems).map(key => {
-								console.log("Rendering item:", key, sortedItems[key]);
 								return (
 									<li
 										key={key}
@@ -129,23 +120,7 @@ const OrderCard = ({order}) => {
 
 			{/* Amount */}
 			<div className="mb-3 bg-zinc-700 rounded-md p-2">
-				<div className="flex justify-between text-xs mb-1">
-					<span className="text-zinc-400">Subtotal:</span>
-					<span className="text-zinc-200">{order.subamount} so'm</span>
-				</div>
-				{order.table_details?.commission && (
-					<div className="flex justify-between text-xs mb-1">
-						<span className="text-zinc-400">
-							Commission ({order.table_details.commission}%):
-						</span>
-						<span className="text-zinc-200">
-							{(parseFloat(order.amount) - parseFloat(order.subamount)).toFixed(
-								2
-							)}{" "}
-							so'm
-						</span>
-					</div>
-				)}
+				
 				<div className="flex justify-between font-bold text-sm border-t border-zinc-600 pt-1">
 					<span className="text-zinc-100">Total:</span>
 					<span className="text-green-400">{order.amount} so'm</span>
@@ -153,16 +128,7 @@ const OrderCard = ({order}) => {
 			</div>
 
 			{/* Timestamps */}
-			<div className="text-xs text-zinc-500 space-y-0.5">
-				<div className="flex justify-between">
-					<span>Created:</span>
-					<span>{formatDate(order.c_at)}</span>
-				</div>
-				<div className="flex justify-between">
-					<span>Updated:</span>
-					<span>{formatDate(order.u_at)}</span>
-				</div>
-			</div>
+			
 		</div>
 	);
 };

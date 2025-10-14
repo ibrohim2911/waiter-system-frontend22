@@ -2,7 +2,7 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { HomeIcon, PlusCircleIcon, ArrowLeftOnRectangleIcon, ArrowUturnLeftIcon } from "@heroicons/react/24/outline";
+import { HomeIcon, PlusCircleIcon, ArrowLeftOnRectangleIcon, ArrowUturnLeftIcon, UserIcon } from "@heroicons/react/24/outline";
 
 
 const BottomBar = () => {
@@ -57,6 +57,11 @@ const BottomBar = () => {
         <ArrowUturnLeftIcon className="h-6 w-6 mb-1" />
         Back
       </button>
+      <Link to={"/profile"} className={`flex flex-col items-center text-base px-4 py-2 rounded-lg transition-all
+          ${isActive("/profile") ? "bg-blue-500 text-white font-bold shadow-lg" : "text-zinc-100 hover:text-blue-400"}`}>
+        <UserIcon className="h-6 w-6 mb-1" />
+        Profile
+      </Link >
     </div>
   );
 }

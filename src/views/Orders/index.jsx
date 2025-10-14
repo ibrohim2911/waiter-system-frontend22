@@ -4,33 +4,108 @@ import { useOrders } from "../../hooks/useOrders";
 import OrderCard from "../../components/OrderCard";
 import { getAllTables } from "../../services/tables";
 import { getAllUsers } from "../../services/users";
+import { me as getMe } from "../../services/getMe";
 
-const PAGE_SIZE = 8;
-const ORDER_STATUSES = ["pending", "processing", "completed"];
+const STATS_API_URL = "http://localhost:8000/api/v1/stats/orders-per-user-and-table/";
+const INITIAL_STATS = {
+	orders_per_user: [],
+	pending_order_per_user: [],
+	processing_order_per_user: [],
+	orders_per_table_location: [],
+	pending_order_per_location: [],
+	processing_order_per_location: [],
+};
 
+// Sub-component for Location Filter
+const LocationFilter = ({ locations, stats, selectedLocation, onSelect, onClear }) => (
+	<div className="mb-3">
+		<div className="text-zinc-300 font-semibold mb-2">Location</div>
+		<div className="space-y-2">
+			{locations.map(location => {
+				const locationStat = stats.orders_per_table_location.find(l => l.table__location === location);
+				const pendingStat = stats.pending_order_per_location.find(l => l.table__location === location);
+				const processingStat = stats.processing_order_per_location.find(l => l.table__location === location);
+				return (
+					<div
+						key={location}
+						className={`cursor-pointer rounded-lg p-2 transition-all border-2 flex items-center justify-between ${selectedLocation === location ? "bg-blue-600 border-blue-400 text-white" : "bg-zinc-700 border-zinc-600 text-zinc-200 hover:bg-zinc-600"}`}
+						onClick={() => onSelect(location)}
+					>
+						<span>{location}</span>
+						<span className="ml-2 text-xs font-bold text-blue-300">{pendingStat?.order_count || 0} / {processingStat?.order_count || 0}</span>
+					</div>
+				);
+			})}
+		</div>
+		{selectedLocation && (
+			<button className="mt-2 text-blue-300 hover:text-blue-100 text-sm" onClick={onClear}>Clear Location</button>
+		)}
+	</div>
+);
+
+// Sub-component for User Filter
+const UserFilter = ({ users, stats, selectedUser, onSelect }) => (
+	<div className="mb-3">
+		<div className="text-zinc-300 font-semibold mb-2">User</div>
+		<div className="space-y-2">
+			{users.map(user => {
+				const pending = stats.pending_order_per_user.find(u => String(u.user_id) === String(user.id));
+				const processing = stats.processing_order_per_user.find(u => String(u.user_id) === String(user.id));
+				return (
+					<div
+						key={user.id}
+						className={`cursor-pointer rounded-lg p-2 transition-all border-2 flex items-center justify-between ${selectedUser === String(user.id) ? "bg-blue-600 border-blue-400 text-white" : "bg-zinc-700 border-zinc-600 text-zinc-200 hover:bg-zinc-600"}`}
+						onClick={() => onSelect(String(user.id))}
+					>
+						<span>{user.username || user.name || user.id}</span>
+						<span className="ml-2 text-xs font-bold text-blue-300">{pending?.pending_order_count || 0} / {processing?.processing_order_count || 0}</span>
+					</div>
+				);
+			})}
+		</div>
+	</div>
+);
 
 const Orders = () => {
 	const { orders, getOrders, loading } = useOrders();
-	const [page, setPage] = useState(1);
 	const [orderStatuses, setOrderStatuses] = useState(["pending", "processing"]);
-	const [total, setTotal] = useState(0);
 	const [locations, setLocations] = useState([]);
 	const [selectedLocation, setSelectedLocation] = useState("");
 	const [users, setUsers] = useState([]);
 	const [selectedUser, setSelectedUser] = useState("");
+	const [filterMode, setFilterMode] = useState("location"); // 'location' or 'user'
+	const [isWaiter, setIsWaiter] = useState(false);
+	const [stats, setStats] = useState(INITIAL_STATS);
+
+	// Fetch stats from backend
+	useEffect(() => {
+		const params = new URLSearchParams();
+		if (orderStatuses.length > 0) {
+			params.append('order_status', orderStatuses.join(','));
+		}
+		fetch(`${STATS_API_URL}?${params.toString()}`)
+			.then(res => res.json())
+			.then(data => setStats(data))
+			.catch(() => setStats(INITIAL_STATS));
+	}, [orderStatuses]);
 
 	useEffect(() => {
 		getAllTables().then(tables => {
 			const uniqueLocations = [...new Set(tables.map(t => t.location))].filter(Boolean).sort();
 			setLocations(uniqueLocations);
 		});
-		getAllUsers().then(users => setUsers(users));
+		getMe().then(user => {
+			if (user && (user.role === 'waiter' || user.is_waiter)) {
+				setIsWaiter(true);
+			} else {
+				getAllUsers().then(users => setUsers(users));
+			}
+		});
 	}, []);
 
 	useEffect(() => {
-			let params = {
-			page,
-			page_size: PAGE_SIZE,
+		let params = {
+			page_size: 0, // Disable pagination on the backend
 		};
 		if (orderStatuses.length > 0) {
 			params.order_status = orderStatuses.join(",");
@@ -38,83 +113,70 @@ const Orders = () => {
 		if (selectedLocation) {
 			params["table__location"] = selectedLocation;
 		}
-		if (selectedUser) {
+		if (filterMode === 'user' && selectedUser) {
 			params["user"] = selectedUser;
 		}
-		getOrders(params).then(data => {
-			if (data && (data.count || data.total)) setTotal(data.count || data.total);
-		});
-	}, [page, orderStatuses, selectedLocation, selectedUser, getOrders]);
-
-	const totalPages = Math.ceil(total / PAGE_SIZE) || 1;
+		getOrders(params);
+	}, [orderStatuses, selectedLocation, selectedUser, getOrders, filterMode]);
 
 	return (
-		<div className="min-h-screen bg-zinc-900 pb-20 flex">
+		<div className="min-h-screen h-screen bg-zinc-900 pb-20 flex overflow-hidden">
 			{/* Sidebar Filters */}
-			<div className="w-80 bg-zinc-800 border-r border-zinc-700 flex flex-col h-full p-4">
-				<h2 className="text-zinc-100 text-lg font-bold mb-4">Filter Orders</h2>
-				{/* Location Filter */}
-				<div className="mb-6">
-					<div className="text-zinc-300 font-semibold mb-2">Location</div>
-					<div className="space-y-2">
-						{locations.map(location => (
-							<div
-								key={location}
-								className={`cursor-pointer rounded-lg p-2 transition-all border-2 ${selectedLocation === location ? "bg-blue-600 border-blue-400 text-white" : "bg-zinc-700 border-zinc-600 text-zinc-200 hover:bg-zinc-600"}`}
-								onClick={() => setSelectedLocation(selectedLocation === location ? "" : location)}
-							>
-								{location}
-							</div>
-						))}
-					</div>
-					{selectedLocation && (
-						<button className="mt-2 text-blue-300 hover:text-blue-100 text-sm" onClick={() => setSelectedLocation("")}>Clear Location</button>
-					)}
-				</div>
-				{/* User Filter */}
-				<div className="mb-6">
-					<div className="text-zinc-300 font-semibold mb-2">User</div>
-					<select
-						className="w-full p-2 rounded bg-zinc-900 text-zinc-100 border border-zinc-700"
-						value={selectedUser}
-						onChange={e => setSelectedUser(e.target.value)}
-					>
-						<option value="">All Users</option>
-						{users.map(user => (
-							<option key={user.id} value={user.id}>{user.username || user.name || user.id}</option>
-						))}
-					</select>
-				</div>
-				{/* Status Filter */}
-				<div className="mb-6">
-					<div className="text-zinc-300 font-semibold mb-2">Status</div>
-					<div className="flex flex-wrap gap-2">
-						{ORDER_STATUSES.map(status => {
-							const checked = orderStatuses.includes(status);
-							return (
+			<div className="w-60 pb-20 bg-zinc-800 border-r-2 border-zinc-700 flex flex-col h-screen max-h-screen shadow-lg z-10">
+				<div className="flex-1 min-h-0 overflow-y-auto p-4 scrollbar-custom">
+					
+					{/* Filter mode toggle for non-waiters */}
+					{!isWaiter && (
+						<>
+							<div className="flex gap-2 mb-3">
 								<button
-									key={status}
-									className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2
-										${checked ? "bg-blue-500 text-white border-2 border-blue-400" : "bg-zinc-700 text-zinc-200 hover:bg-blue-600 hover:text-white"}`}
+									className={`flex-1 py-1 rounded text-xs font-semibold border ${filterMode === 'location' ? 'bg-blue-600 text-white' : 'bg-zinc-700 text-zinc-200'} transition`}
 									onClick={() => {
-										setPage(1);
-										setOrderStatuses(prev =>
-											prev.includes(status)
-												? prev.filter(s => s !== status)
-												: [...prev, status]
-										);
+										setFilterMode('location');
+										setSelectedUser(""); // Clear user filter when switching
 									}}
 								>
-									<span className={`inline-block w-4 h-4 border rounded mr-1 ${checked ? "bg-white border-blue-400" : "border-zinc-400"}`}>{checked ? <span className="block w-2 h-2 mx-auto my-auto bg-blue-500 rounded"></span> : null}</span>
-									{status.charAt(0).toUpperCase() + status.slice(1)}
+									Location Filter
 								</button>
-							);
-						})}
-					</div>
+								<button
+									className={`flex-1 py-1 rounded text-xs font-semibold border ${filterMode === 'user' ? 'bg-blue-600 text-white' : 'bg-zinc-700 text-zinc-200'} transition`}
+									onClick={() => {
+										setFilterMode('user');
+										setSelectedLocation(""); // Clear location filter when switching
+									}}
+								>
+									User Filter
+								</button>
+							</div>
+							{filterMode === 'location' && (
+								<LocationFilter
+									locations={locations}
+									stats={stats}
+									selectedLocation={selectedLocation}
+									onSelect={(location) => setSelectedLocation(selectedLocation === location ? "" : location)}
+									onClear={() => setSelectedLocation("")}
+								/>
+							)}
+							{filterMode === 'user' && (
+								<UserFilter users={users} stats={stats} selectedUser={selectedUser} onSelect={setSelectedUser} />
+							)}
+						</>
+					)}
+
+					{/* Location filter for waiters */}
+					{isWaiter && (
+						<LocationFilter
+							locations={locations}
+							stats={stats}
+							selectedLocation={selectedLocation}
+							onSelect={(location) => setSelectedLocation(selectedLocation === location ? "" : location)}
+							onClear={() => setSelectedLocation("")}
+						/>
+					)}
 				</div>
 			</div>
 			{/* Orders List */}
-			<div className="flex-1">
+			<div className="flex-1 pb-20 min-w-0 h-screen max-h-screen overflow-y-auto scrollbar-custom">
 				<div className="p-3 w-full grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 justify-center gap-6">
 					{loading ? (
 						<div className="col-span-full text-center text-zinc-300">Loading...</div>
@@ -124,24 +186,7 @@ const Orders = () => {
 						<div className="col-span-full text-center text-zinc-400">No orders found.</div>
 					)}
 				</div>
-				{/* Pagination */}
-				<div className="flex justify-center gap-2 mt-4">
-					<button
-						className="px-3 py-1 rounded bg-zinc-700 text-zinc-200 disabled:opacity-50"
-						onClick={() => setPage(p => Math.max(1, p - 1))}
-						disabled={page === 1}
-					>
-						Previous
-					</button>
-					<span className="px-3 py-1 text-zinc-300">Page {page} of {totalPages}</span>
-					<button
-						className="px-3 py-1 rounded bg-zinc-700 text-zinc-200 disabled:opacity-50"
-						onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-						disabled={page === totalPages}
-					>
-						Next
-					</button>
-				</div>
+				
 			</div>
 		</div>
 	);
