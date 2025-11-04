@@ -3,19 +3,39 @@ import { useNavigate } from "react-router-dom";
 const OrderCard = ({order}) => {
 	let sortedItems = {};
 	// Status color mapping
-	const getStatusColor = status => {
-		switch (status) {
-			case "pending":
+	const getStatusColor = (order) => {
+		// Yellow for processing orders created < 10 min ago
+		if (order.order_status === "processing" && order.c_at) {
+			const created = new Date(order.c_at);
+			const now = new Date();
+			const diffMs = now - created;
+			if (diffMs < 10 * 60 * 1000) {
 				return "border-yellow-400 shadow-yellow-400/50";
-			case "processing":
-				return "border-blue-400 shadow-blue-400/50";
+			}
+			return "border-green-400 shadow-green-400/50";
+		}
+		switch (order.order_status) {
+			case "pending":
+				return "border-red-900 shadow-red-800/50";
 			case "completed":
 				return "border-black";
-			// case 'cancelled':
-			//   return 'border-red-400 shadow-red-400/50';
 			default:
 				return "border-gray-400 shadow-gray-400/50";
 		}
+	};
+
+	// Glowing effect color for left bar
+	const getGlowColor = order => getStatusColor(order);
+
+	const getMinutesSinceCreated = order => {
+		if (order.order_status === "processing" && order.c_at) {
+			const created = new Date(order.c_at);
+			const now = new Date();
+			const minutes = ((now - created) / 1000 / 60).toFixed(2);
+			console.log(`Order ID: ${order.id}, Minutes since created: ${minutes}`);
+			return minutes;
+		}
+		return null;
 	};
 
 	const formatDate = dateString => {
@@ -40,50 +60,45 @@ const OrderCard = ({order}) => {
 		sortedItems[itm.item_name]["total_price"] += parseFloat(itm["item_price"]) * parseFloat(itm["quantity"]);
 	});
 	const navigate = useNavigate();
-	return (
-		<div
-			className={`relative bg-zinc-800 text-zinc-100 rounded-lg shadow-lg p-4 my-2 w-full transition-all duration-300 hover:shadow-xl border-l-4 ${getStatusColor(
-				order.order_status
-			)} shadow-lg flex flex-col`}
-			onClick={() => {
-				navigate("/order-details", { state: { orderid: order.id } });
-			}}
-		>
+		return (
+					<div
+						className={`relative bg-zinc-800 rounded-lg shadow-lg p-3 my-2 w-full transition-all duration-300 hover:shadow-xl border-l-4 ${getStatusColor(order)} shadow-lg flex flex-col text-[0.81em] ${order.order_status === 'pending' ? 'text-red-500' : 'text-zinc-100'}`}
+						onClick={() => {
+							navigate("/order-details", { state: { orderid: order.id } });
+						}}
+					>
 			{/* Glowing effect */}
 			<div
-				className={`absolute -left-1 top-0 bottom-0 w-1 rounded-l-lg ${getStatusColor(
-					order.order_status
-				)} blur-sm opacity-75`}
+				className={`absolute -left-1 top-0 bottom-0 w-1 rounded-l-lg ${getGlowColor(order)} blur-sm opacity-75`}
+				title={order.order_status === 'processing' ? `Minutes since created: ${getMinutesSinceCreated(order)}` : undefined}
 			></div>
 
 			{/* Header */}
-			<div className="flex justify-between items-center mb-3 pb-2 border-b border-zinc-600">
+			<div className={`flex justify-between items-center mb-2 pb-2 border-b border-zinc-600 text-[0.81em] ${order.order_status === 'pending' ? 'text-red-500' : ''}`}> 
 				<div className="flex flex-col">
-					<span>
+					<span className={order.order_status === 'pending' ? 'text-red-500 text-xs' : 'text-xs'}>
 						{order.user_name}
 					</span>
 					<span
-						className={`inline-block px-2 py-0.5 text-xs text-zinc-300 font-medium rounded-full mt-1 ${
+						className={`inline-block px-2 py-0.5 text-[1.3em] text-zinc-300 font-medium rounded-full mt-1  ${
 							order.order_status === "pending"
 								? "bg-yellow-900 text-yellow-200"
 								: order.order_status === "in_progress"
 								? "bg-blue-900 text-blue-200"
 								: order.order_status === "completed"
 								? "bg-green-900 text-green-200"
-								: // order.order_status === 'cancelled' ? 'bg-red-900 text-red-200' :
-								  "bg-zinc-700 text-zinc-200"
+								: "bg-zinc-700 text-zinc-200"
 						}`}
 					>
 						{order.order_status.replace("_", " ").toUpperCase()}
 					</span>
 				</div>
 				<div className="text-right">
-
-					<p className="font-semibold text-base text-zinc-100">
+					<p className={order.order_status === 'pending' ? 'font-semibold text-base text-red-500 text-[1.5em]' : 'font-semibold text-base text-zinc-100 text-[1.5em]'}>
 						{order.table_details?.name || order.table}
 					</p>
 					{order.table_details?.location && (
-						<p className="text-xs text-zinc-500">
+						<p className={order.order_status === 'pending' ? 'text-xs text-red-500 text-[1.5em]' : 'text-xs text-zinc-500 text-[1.5em]'}>
 							{order.table_details.location}
 						</p>
 					)}
@@ -92,21 +107,21 @@ const OrderCard = ({order}) => {
 
 
 			{/* Order Items */}
-			<div className="mb-3 h-32 min-h-32">
-				<div className="bg-zinc-700 rounded-md p-2 overflow-y-scroll no-scrollbar h-full">
+							<div className="mb-2 h-32 min-h-32 text-[0.81em]">
+								<div className="bg-zinc-700 rounded-md p-2 overflow-y-scroll no-scrollbar h-full text-[0.81em]">
 					{order.items && order.items.length > 0 ? (
 						<ul className="space-y-0.5">
 							{Object.keys(sortedItems).map(key => {
 								return (
 									<li
 										key={key}
-										className="flex justify-between text-xs text-zinc-200"
+										className={order.order_status === 'pending' ? 'flex justify-between text-[1.7em] text-red-500' : 'flex justify-between text-[1.7em] text-zinc-200'}
 									>
 										<span className="flex gap-1 items-center">
 											{key} <sub>x{sortedItems[key].quantity}</sub>
 										</span>
-										<span className="font-medium">
-											{sortedItems[key].total_price} so'm
+										<span className="font-medium" >
+											{sortedItems[key].total_price} <small>so'm</small>
 										</span>
 									</li>
 								);
@@ -119,11 +134,10 @@ const OrderCard = ({order}) => {
 			</div>
 
 			{/* Amount */}
-			<div className="mb-3 bg-zinc-700 rounded-md p-2">
-				
-				<div className="flex justify-between font-bold text-sm border-t border-zinc-600 pt-1">
-					<span className="text-zinc-100">Total:</span>
-					<span className="text-green-400">{order.amount} so'm</span>
+			<div className="mb-0 bg-zinc-700 rounded-md p-1">
+				<div className="flex justify-between font-bold text-sm  pt-1 text-[1.3em]">
+					<span className={order.order_status === 'pending' ? 'text-red-500' : 'text-zinc-100'}>Total:</span>
+					<span className={order.order_status === 'pending' ? 'text-red-500' : 'text-green-400'}>{order.amount}<small> so'm</small></span>
 				</div>
 			</div>
 

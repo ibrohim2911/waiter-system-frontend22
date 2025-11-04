@@ -1,3 +1,17 @@
+// Helper to show time since last update (uses u_at or c_at)
+function timeSince(date) {
+  if (!date) return "-";
+  const now = new Date();
+  const updated = new Date(date);
+  const seconds = Math.floor((now - updated) / 1000);
+  if (seconds < 60) return `${seconds} sekund `;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} minut `;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} soat`;
+  const days = Math.floor(hours / 24);
+  return `${days} kun${days > 1 ? 'lar' : ''}`;
+}
   // Allow editing if order_status is 'processing' or 'pending'
   
 
@@ -8,6 +22,7 @@
   import { createOrderItem, updateOrderItem, deleteOrderItem } from "../../services/orderItems";
   import api from "../../services/api";
   import { me } from "../../services/getMe";
+import {TableCellsIcon } from "@heroicons/react/24/outline";
   
   const categories = [
   { key: "frequent", label: "FREQUENTLY USED" },
@@ -20,11 +35,90 @@
 
 
 export default function OrderEditPage() {
+  // Safe navigation: always save before leaving if there are unsaved items
+  const safeNavigate = async (...args) => {
+    if (newOrderItems.length > 0 || pendingEdits.length > 0) {
+      await handleSave();
+    }
+    navigate(...args);
+  };
+  // Add item locally to newOrderItems
+  const addItem = (menuItem) => {
+    if (!isEditable) return;
+    setNewOrderItems(prev => {
+      // If already in list, increment quantity
+      const idx = prev.findIndex(i => i.menu_item === menuItem.id);
+      if (idx !== -1) {
+        const updated = [...prev];
+        updated[idx] = { ...updated[idx], quantity: updated[idx].quantity + 1 };
+        return updated;
+      }
+      // Else add new
+      return [
+        ...prev,
+        {
+          menu_item: menuItem.id,
+          item_name: menuItem.name,
+          item_price: menuItem.price,
+          quantity: 1
+        }
+      ];
+    });
+  };
+  // Save order (restored)
+  const handleSave = async () => {
+    try {
+      // First, send all new order items to backend
+      for (const item of newOrderItems) {
+        await createOrderItem(order.id, item.menu_item, item.quantity);
+      }
+      // Apply pending edits to saved order items
+      for (const edit of pendingEdits) {
+        if (edit.deleted) {
+          await deleteOrderItem(edit.id);
+        } else if (typeof edit.quantity === 'number') {
+          const original = order.items.find(i => i.id === edit.id);
+          if (original) {
+            await updateOrderItem(edit.id, {
+              order: order.id,
+              menu_item: original.menu_item,
+              quantity: edit.quantity
+            });
+          }
+        }
+      }
+      // Optionally, update order details if needed (guests, table, etc)
+      await updateOrder(order.id, {
+        ...order,
+        table: order.table,
+        guests: order.guests || 4
+      });
+      setNewOrderItems([]);
+      setPendingEdits([]);
+      // Fetch latest order and update UI
+      const res = await fetchOrder(order.id);
+      setOrder(res.data);
+    } catch (err) {
+      console.error("Save failed", err);
+    }
+  };
   // Local state for new order items to be added
   const [newOrderItems, setNewOrderItems] = useState([]);
   const [numpad, setNumpad] = useState({ open: false, itemKey: null, value: "" });
   // Track local edits to saved order items: { id, quantity, deleted }
   const [pendingEdits, setPendingEdits] = useState([]);
+  // Auto-save on page unload (browser close/refresh)
+  useEffect(() => {
+    const autoSave = async (e) => {
+      if (newOrderItems.length > 0 || pendingEdits.length > 0) {
+        await handleSave();
+      }
+    };
+    window.addEventListener('beforeunload', autoSave);
+    return () => {
+      window.removeEventListener('beforeunload', autoSave);
+    };
+  }, [newOrderItems, pendingEdits]);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -124,8 +218,6 @@ export default function OrderEditPage() {
   if (!id) return <div>No order id provided. (id is missing)</div>;
   if (!order) return <div>Loading order... (Check console for debug info)</div>;
 
-  // ...existing code...
-
   // Filter menu items by tab and search
     // If search is active, show all items matching search, else filter by tab
     let filteredMenuItems = [];
@@ -155,89 +247,25 @@ export default function OrderEditPage() {
       });
     }
 
-  // Add item locally to newOrderItems
-  const addItem = (menuItem) => {
-    if (!isEditable) return;
-    setNewOrderItems(prev => {
-      // If already in list, increment quantity
-      const idx = prev.findIndex(i => i.menu_item === menuItem.id);
-      if (idx !== -1) {
-        const updated = [...prev];
-        updated[idx] = { ...updated[idx], quantity: updated[idx].quantity + 1 };
-        return updated;
-      }
-      // Else add new
-      return [
-        ...prev,
-        {
-          menu_item: menuItem.id,
-          item_name: menuItem.name,
-          item_price: menuItem.price,
-          quantity: 1
-        }
-      ];
-    });
-  };
+  // Only return JSX after all hooks
+  if (!id) return <div>No order id provided. (id is missing)</div>;
+  if (!order) return <div>Loading order... (Check console for debug info)</div>;
 
-  // Remove item from order
-  const removeItem = (itemId) => {
-    setOrder(prev => ({
-      ...prev,
-      items: prev.items.filter(item => item.id !== itemId)
-    }));
-  };
-
-  // Save order
-  const handleSave = async () => {
-    try {
-      // First, send all new order items to backend
-      for (const item of newOrderItems) {
-        await createOrderItem(order.id, item.menu_item, item.quantity);
-      }
-      // Apply pending edits to saved order items
-      for (const edit of pendingEdits) {
-        if (edit.deleted) {
-          await deleteOrderItem(edit.id);
-        } else if (typeof edit.quantity === 'number') {
-          // Find the original item to get menu_item
-          const original = order.items.find(i => i.id === edit.id);
-          if (original) {
-            await updateOrderItem(edit.id, {
-              order: order.id,
-              menu_item: original.menu_item,
-              quantity: edit.quantity
-            });
-          }
-        }
-      }
-      // Optionally, update order details if needed (guests, table, etc)
-      await updateOrder(order.id, {
-        ...order,
-        table: order.table,
-        guests: order.guests || 4
-      });
-      setNewOrderItems([]);
-      setPendingEdits([]);
-      navigate("/");
-    } catch (err) {
-      console.error("Save failed", err);
-      alert("Failed to save order. Please try again.");
-    }
-  };
-
+  // Filter menu items by tab and search
+    // If search is active, show all items matching search, else filter by tab
 
   return (
     <div className="min-h-screen bg-zinc-900 flex items-stretch justify-center p-0 m-0">
       <div
         className="w-full max-w-[100vw] bg-zinc-800 rounded-none shadow-lg flex flex-col md:flex-row overflow-hidden border border-zinc-700"
-        style={{ height: 'calc(100vh - 80px)' }}
+        style={{ height: 'calc(100vh - 60px)' }}
       >
         {/* Left: Order summary */}
         <div className="w-full md:w-1/3 flex flex-col border-r border-zinc-700 bg-zinc-900 min-h-[500px]">
-          <div className="flex items-center justify-between bg-zinc-800 px-4 py-3 border-b border-zinc-700">
+          <div className="flex items-center justify-between bg-zinc-800 px-2 py-1 border-b border-zinc-700">
             <div>
-              <span className="font-bold text-lg text-zinc-100">ORDER</span>
-              <span className="text-zinc-400 ml-2">#{order.id}</span>
+              <span className="font-bold text-sm text-zinc-100">ORDER</span>
+              <span className="text-zinc-400 ml-1">#{order.id}</span>
             </div>
             <div>
               <span className="font-bold text-blue-300">
@@ -245,49 +273,46 @@ export default function OrderEditPage() {
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-4 px-4 py-3 border-b border-zinc-800 text-zinc-200 bg-zinc-800">
-            <span className="flex items-center gap-1">
-              <span role="img" aria-label="calendar">📅</span> {order.c_at ? new Date(order.c_at).toLocaleString() : "-"}
+          <div className="flex items-center justify-between px-2 py-2 border-b border-zinc-800 text-zinc-200 bg-zinc-800">
+            <span className="flex items-center  text-[0.7em]">
+              <span role="img" aria-label="calendar " >📅</span> {order.c_at ? new Date(order.c_at).toLocaleString() : "-"}
             </span>
-            <span>Table:
-              <span className="ml-1 px-2 py-1 border rounded w-28 bg-zinc-900 cursor-not-allowed select-none">
+            <span className="text-[0.8em]">
+              <TableCellsIcon className="w-4 h-4 inline-block" />
+              <span
+                className="ml-1 px-1 py-1 cursor-pointer select-none text-blue-400 underline"
+                onClick={() => {
+                  if (!isEditable) return;
+                  safeNavigate("/create-order", { state: { orderid: order.id } });
+                }}
+              >
                 {order.table_details?.name}
               </span>
-              <span className="ml-1 px-2 py-1 border rounded w-28 bg-zinc-900 cursor-not-allowed select-none">
+              <span className="ml-1 px-1 py-1 select-none">
                 {order.table_details?.location}
               </span>
             </span>
-            <span className="flex items-center gap-1">
-              <span role="img" aria-label="guests">👥</span> Guests:
-              <input
-                type="number"
-                min={1}
-                className="ml-1 px-2 py-1 border rounded w-12 bg-zinc-900 text-zinc-100"
-                value={order.table_details?.capacity || 4}
-                onChange={e => setOrder(o => ({ ...o, guests: Number(e.target.value) }))}
-              />
-            </span>
-          </div>
-          <div className="flex-1 overflow-y-auto px-4 py-2">
+            </div>
+          <div className="flex-1 overflow-y-auto px-2 py-2">
             {/* List order items */}
             {displayedSavedOrderItems.length === 0 && groupedNewOrderItems.length === 0 ? (
-              <div className="text-zinc-500 text-center py-8">No items in order.</div>
+              <div className="text-zinc-500 text-center py-4">No items in order.</div>
             ) : (
               <>
                 {displayedSavedOrderItems.length > 0 && (
-                  <ul className="space-y-2 mb-4">
+                  <ul className="space-y-2 mb-1">
                     {displayedSavedOrderItems.map(item => (
-                      <li key={"saved-" + item.id} className="flex items-center justify-between bg-zinc-800 rounded-lg shadow-sm px-3 py-2 border border-zinc-700">
+                      <li key={"saved-" + item.id} className="flex text-[0.8em] items-center justify-between bg-zinc-800 rounded-lg shadow-sm px-3 py-1 border border-zinc-700">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-zinc-100 truncate max-w-[110px]">{item.item_name}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-zinc-200">{Number(item.item_price) * Number(item.quantity)} so'm</span>
+                          <span className="font-semibold text-zinc-200">{Number(item.item_price) * Number(item.quantity)} <small>so'm</small></span>
                           {/* Editable controls for non-waiter users */}
-                          {user && user.role !== 'waiter' && isEditable ? (
+                          {(
                             <>
-                              <button
-                                className="bg-zinc-700 text-zinc-200 rounded-full w-8 h-8 flex items-center justify-center text-lg font-bold hover:bg-blue-700 disabled:opacity-50"
+                              {/* <button
+                                className="bg-zinc-700 text-zinc-200 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold hover:bg-blue-700 disabled:opacity-50"
                                 onClick={() => {
                                   const qty = item.quantity;
                                   if (qty > 1) {
@@ -305,17 +330,15 @@ export default function OrderEditPage() {
                                     });
                                   }
                                 }}
-                              >-</button>
+                              >-</button> */}
                               <span
-                                className="inline-block bg-blue-900 text-blue-200 text-base font-bold rounded-full px-3 py-1 cursor-pointer select-none"
-                                onClick={() => {
-                                  setNumpad({ open: true, itemKey: 'saved-' + item.id, value: String(item.quantity) });
-                                }}
+                                className="inline-block bg-blue-900 text-blue-200 text-xs font-bold rounded-full px-2 py-1 select-none"
+                                
                               >
                                 x{item.quantity}
                               </span>
-                              <button
-                                className="bg-zinc-700 text-zinc-200 rounded-full w-8 h-8 flex items-center justify-center text-lg font-bold hover:bg-blue-700 disabled:opacity-50"
+                              {/* <button
+                                className="bg-zinc-700 text-zinc-200 rounded-full w-6 h-6 flex items-center justify-center text-lg font-bold hover:bg-blue-700 disabled:opacity-50"
                                 onClick={() => {
                                   const qty = item.quantity;
                                   setPendingEdits(prev => {
@@ -327,16 +350,17 @@ export default function OrderEditPage() {
                                     }
                                   });
                                 }}
-                              >+</button>
-                              <button
+                              >+</button> */}
+                              {/* <button
                                 onClick={() => {
                                   setPendingEdits(prev => [...prev.filter(e => e.id !== item.id), { id: item.id, deleted: true }]);
                                 }}
-                                className="text-red-400 hover:text-red-600 text-lg px-3 py-1 rounded transition"
-                              >✕</button>
+                                className="text-red-400 hover:text-red-600 text-sm px-1 py-1 rounded transition"
+                              >✕</button> */}
+                              <span className="text-xs text-zinc-400 italic">
+                                {timeSince(item.u_at)}
+                              </span>
                             </>
-                          ) : (
-                            <span className="inline-block bg-blue-900 text-blue-200 text-base font-bold rounded-full px-3 py-1">x{item.quantity}</span>
                           )}
                         </div>
                       </li>
@@ -348,14 +372,14 @@ export default function OrderEditPage() {
                     <div className="text-xs text-blue-400 mb-1">New Items (not saved yet)</div>
                     <ul className="space-y-2">
                       {groupedNewOrderItems.map(item => (
-                        <li key={"new-" + item.item_name + '__' + item.item_price} className="flex items-center justify-between bg-zinc-800 rounded-lg shadow-sm px-3 py-2 border border-zinc-700">
+                        <li key={"new-" + item.item_name + '__' + item.item_price} className="flex text-[0.8em] items-center justify-between bg-zinc-800 rounded-lg shadow-sm px-2 py-1 border border-zinc-700">
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold text-zinc-100 truncate max-w-[110px]">{item.item_name}</span>
+                            <span className="font-semibold  text-zinc-100 truncate max-w-[110px]">{item.item_name}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold text-zinc-200">{item.total_price} so'm</span>
-                            <button
-                              className="bg-zinc-700 text-zinc-200 rounded-full w-8 h-8 flex items-center justify-center text-lg font-bold hover:bg-blue-700 disabled:opacity-50"
+                            <span className="font-semibold text-zinc-200">{item.total_price} <small>so'm</small></span>
+                            {/* <button
+                              className="bg-zinc-700 text-zinc-200 rounded-full w-6 h-6 flex items-center justify-center text-lg font-bold hover:bg-blue-700 disabled:opacity-50"
                               onClick={() => {
                                 if (!isEditable) return;
                                 setNewOrderItems(prev => prev.flatMap(i => {
@@ -371,17 +395,18 @@ export default function OrderEditPage() {
                                 }));
                               }}
                               disabled={!isEditable}
-                            >-</button>
-                            {isEditable ? (
+                            >-</button> */}
+                            {/* {isEditable ? (
                               <span
-                                className="inline-block bg-blue-900 text-blue-200 text-base font-bold rounded-full px-3 py-1 cursor-pointer select-none"
+                                className="inline-block bg-blue-900 text-blue-200 text-xs font-bold rounded-full px-2 py-1 cursor-pointer select-none"
                                 onClick={() => setNumpad({ open: true, itemKey: item.item_name + '__' + item.item_price, value: String(item.quantity) })}
                               >
                                 x{item.quantity}
                               </span>
-                            ) : (
-                              <span className="inline-block bg-blue-900 text-blue-200 text-base font-bold rounded-full px-3 py-1">x{item.quantity}</span>
-                            )}
+                            ) :  */}
+                            
+                              <span className="inline-block bg-blue-900 text-blue-200 text-sm font-bold rounded-full px-2 py-1">x{item.quantity}</span>
+                            
       {/* Numpad overlay for editing quantity */}
       {numpad.open && (
         <Numpad
@@ -419,8 +444,8 @@ export default function OrderEditPage() {
           }}
         />
       )}
-                            <button
-                              className="bg-zinc-700 text-zinc-200 rounded-full w-8 h-8 flex items-center justify-center text-lg font-bold hover:bg-blue-700 disabled:opacity-50"
+                            {/* <button
+                              className="bg-zinc-700 text-zinc-200 rounded-full w-6 h-6 flex items-center justify-center text-lg font-bold hover:bg-blue-700 disabled:opacity-50"
                               onClick={() => {
                                 if (!isEditable) return;
                                 setNewOrderItems(prev => [
@@ -434,15 +459,15 @@ export default function OrderEditPage() {
                                 ]);
                               }}
                               disabled={!isEditable}
-                            >+</button>
-                            <button
+                            >+</button> */}
+                            {/* <button
                               onClick={() => {
                                 if (!isEditable) return;
                                 setNewOrderItems(prev => prev.filter(i => !(i.item_name === item.item_name && i.item_price === item.item_price)));
                               }}
-                              className="text-red-400 hover:text-red-600 text-lg px-3 py-1 rounded transition disabled:opacity-50"
+                              className="text-red-400 hover:text-red-600 text-sm px-2 py-1 rounded transition disabled:opacity-50"
                               disabled={!isEditable}
-                            >✕</button>
+                            >✕</button> */}
                           </div>
                         </li>
                       ))}
@@ -452,35 +477,31 @@ export default function OrderEditPage() {
               </>
             )}
           </div>
-          <div className="border-t border-zinc-800 px-4 py-3 bg-zinc-800">
+          <div className="border-t border-zinc-800 px-2 py-1 bg-zinc-800">
             {/* Discount and Surcharge removed */}
-            <div className="flex justify-between text-sm mb-1 text-zinc-300">
+            <div className="flex justify-between text-xs text-zinc-300">
               <span>Subtotal:</span>
-              <span>{calcSubtotal} so'm</span>
+              <span>{calcSubtotal} so'm + {commission}%</span>
             </div>
-            <div className="flex justify-between text-sm mb-1 text-zinc-300">
-              <span>Commission:</span>
-              <span>{commission}%</span>
-            </div>
-            <div className="text-right text-2xl font-bold mt-2 text-blue-300">
-              {calcAmount} so'm
+            <div className="text-right text-xl font-bold mt-1 text-blue-300">
+              {calcAmount} <small>so'm</small>
             </div>
           </div>
-          <div className="flex gap-2 p-2 border-t border-zinc-800 bg-zinc-800">
-            <button className="flex-1 py-3 bg-red-700 text-zinc-100 rounded-lg font-bold text-base hover:bg-red-600 transition disabled:opacity-50" onClick={() => isEditable && setNewOrderItems([])} disabled={!isEditable}>× Clear</button>
-            <button className="flex-1 py-3 bg-blue-700 text-zinc-100 rounded-lg font-bold text-base flex items-center justify-center gap-2 hover:bg-blue-600 transition disabled:opacity-50" onClick={isEditable ? handleSave : undefined} disabled={!isEditable}>
-              <span role="img" aria-label="save">💾</span> Save
+          <div className="flex gap-2 p-1 border-t border-zinc-800 bg-zinc-800">
+            <button className="flex-1 py-1 bg-red-700 text-zinc-100 rounded-lg font-bold text-sm  hover:bg-red-600 transition disabled:opacity-50" onClick={() => isEditable && setNewOrderItems([])} disabled={!isEditable}> Clear</button>
+            <button className="flex-1 py-1 bg-blue-700 text-zinc-100 rounded-lg font-bold text-sm flex items-center justify-center gap-1 hover:bg-blue-600 transition disabled:opacity-50" onClick={isEditable ? handleSave : undefined} disabled={!isEditable}>
+              <span role="img" aria-label="save"></span> Save
             </button>
             {/* Precheque for processing orders */}
             {order.order_status === 'processing' && (
               <button
-                className="flex-1 py-3 bg-yellow-600 text-zinc-900 rounded-lg font-bold text-base flex items-center justify-center gap-2 hover:bg-yellow-500 transition"
+                className="flex-1 py-1 bg-yellow-600 text-zinc-100 rounded-lg font-bold text-xs flex items-center justify-center gap-1 hover:bg-yellow-500 transition"
                 onClick={async () => {
                   await updateOrder(order.id, { ...order, order_status: 'pending' });
                   setOrder({ ...order, order_status: 'pending' });
                 }}
               >
-                <span role="img" aria-label="precheque">🧾</span> Precheque
+                <span role="img" aria-label="precheque"></span> prechek
               </button>
             )}
             {/* Status change controls for non-waiters */}
@@ -488,24 +509,24 @@ export default function OrderEditPage() {
               <>
                 {order.order_status !== 'completed' && (
                   <button
-                    className="flex-1 py-3 bg-green-700 text-zinc-100 rounded-lg font-bold text-base flex items-center justify-center gap-2 hover:bg-green-600 transition"
+                    className="flex-1 py-3 bg-green-700 text-zinc-100 rounded-lg font-bold text-xs flex items-center justify-center gap-1 hover:bg-green-600 transition"
                     onClick={async () => {
                       await updateOrder(order.id, { ...order, order_status: 'completed' });
                       setOrder({ ...order, order_status: 'completed' });
                     }}
                   >
-                    <span role="img" aria-label="close">✅</span> Close Order
+                    <span role="img" aria-label="close" ></span> yopish
                   </button>
                 )}
                 {order.order_status !== 'processing' && (
                   <button
-                    className="flex-1 py-3 bg-blue-800 text-zinc-100 rounded-lg font-bold text-base flex items-center justify-center gap-2 hover:bg-blue-700 transition"
+                    className="flex-1 py-3 bg-blue-800 text-zinc-100 rounded-lg font-bold text-xs flex items-center justify-center gap-2 hover:bg-blue-700 transition"
                     onClick={async () => {
                       await updateOrder(order.id, { ...order, order_status: 'processing' });
                       setOrder({ ...order, order_status: 'processing' });
                     }}
                   >
-                    <span role="img" aria-label="open">🔓</span> Open Order
+                    <span role="img" aria-label="open"></span> Ochish
                   </button>
                 )}
               </>
@@ -519,7 +540,7 @@ export default function OrderEditPage() {
             {categories.map(cat => (
               <button
                 key={cat.key}
-                className={`flex-1 py-3 text-base font-bold border-b-4 ${activeTab === cat.key ? "border-blue-500 bg-zinc-900 text-blue-400" : "border-transparent text-zinc-400"}`}
+                className={`flex-1 py-2 text-xs font-bold border-b-4 ${activeTab === cat.key ? "border-blue-500 bg-zinc-900 text-blue-400" : "border-transparent text-zinc-400"}`}
                 onClick={() => setActiveTab(cat.key)}
               >
                 {cat.label}
@@ -527,10 +548,10 @@ export default function OrderEditPage() {
             ))}
           </div>
           {/* Search */}
-          <div className="p-4 border-b border-zinc-800 bg-zinc-900">
+          <div className="p-2 border-b border-zinc-800 bg-zinc-900">
             <div className="relative">
               <input
-                className="w-full p-2 rounded border border-zinc-700 bg-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-400 pr-10"
+                className="w-full p-1 rounded border border-zinc-700 bg-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-400 pr-10"
                 placeholder="Search..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
@@ -549,14 +570,14 @@ export default function OrderEditPage() {
             </div>
           </div>
           {/* Menu items grid */}
-          <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2 p-4 bg-zinc-900 overflow-y-auto">
+          <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-1 p-4 bg-zinc-900 overflow-y-auto">
             {filteredMenuItems.length === 0 ? (
-              <div className="col-span-full text-zinc-500 text-center py-8">No menu items found.</div>
+              <div className="col-span-full text-zinc-500 text-center py-4">No menu items found.</div>
             ) : (
               filteredMenuItems.map(item => (
                 <div
                   key={item.id}
-                  className={`rounded-lg shadow text-zinc-100 flex items-center justify-center text-base font-bold bg-blue-700 transition p-2 min-w-[110px] max-w-[110px] min-h-[80px] max-h-[80px] w-[110px] h-[80px] cursor-pointer ${isEditable ? 'hover:bg-blue-500' : 'opacity-60 cursor-not-allowed'}`}
+                  className={`rounded-lg shadow text-zinc-100 flex items-center text-center justify-center text-xs  font-bold bg-blue-700 transition p-1 w-20 h-20 select-none cursor-pointer ${isEditable ? 'hover:bg-blue-500' : 'opacity-60 cursor-not-allowed'}`}
                   onClick={() => isEditable && addItem(item)}
                   tabIndex={0}
                   aria-disabled={!isEditable}

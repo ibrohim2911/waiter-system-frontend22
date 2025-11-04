@@ -1,4 +1,5 @@
-import {useNavigate} from "react-router-dom";
+import React from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import usePlaceSelection from "../../hooks/usePlaceSelection";
 import { LocationCard, TableCard } from "../../components";
 import { useOrders } from "../../hooks/useOrders";
@@ -6,6 +7,7 @@ import { me as getMe } from "../../services/getMe";
 
 const PlaceSelection = () => {
 	const navigate = useNavigate();
+	const location = useLocation();
 	const { addOrder } = useOrders();
 	const {
 		locations,
@@ -21,36 +23,40 @@ const PlaceSelection = () => {
 	} = usePlaceSelection();
 
 	const handleTableSelect = async table => {
-		// Only allow selection of available tables
-		if (!table.is_available) {
-			return;
-		}
-		let me = getMe();
+		
+		let me = await getMe();
 		if (!me) {
 			navigate("/login");
 			return;
 		}
-		const order =  await addOrder({
-			table: table.id,
-			user: me.id,
-			order_status: "processing",
-			
-		})
-
-		selectTable(table);
-		// Navigate to next page (e.g., order details page)
-		navigate("/order-details", {
-			state: {
-				selectedLocation,
-				selectedTable: table,
-				orderid: order.id,
-			},
-		});
+		const orderid = location.state?.orderid;
+		if (orderid) {
+			const { updateOrder } = await import("../../services/orders");
+			await updateOrder(orderid, { table: table.id });
+			selectTable(table);
+			navigate("/order-details", {
+				state: {
+					selectedLocation,
+					selectedTable: table,
+					orderid: orderid,
+				},
+			});
+		} else {
+			const order = await addOrder({
+				table: table.id,
+				user: me.id,
+				order_status: "processing",
+			});
+			selectTable(table);
+			navigate("/order-details", {
+				state: {
+					selectedLocation,
+					selectedTable: table,
+					orderid: order.id,
+				},
+			});
+		}
 	};
-
-
-  // console.log("Location Stats:", locationStats);
-  
 
 	if (isLoadingLocations) {
 		return (
@@ -61,13 +67,12 @@ const PlaceSelection = () => {
 	}
 
 	return (
-		<div className="h-screen bg-zinc-900 flex overflow-hidden pb-20">
+		<div className="h-screen bg-zinc-900 flex overflow-hidden pb-15">
 			{error && (
 				<div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-900 text-red-200 p-3 rounded-lg z-10">
 					{error}
 				</div>
 			)}
-
 			{/* Left Sidebar - Locations */}
 			<div className="w-80 bg-zinc-800 border-r border-zinc-700 flex flex-col h-full">
 				{/* Sidebar Header */}
@@ -75,19 +80,11 @@ const PlaceSelection = () => {
 					<h2 className="text-zinc-100 text-lg font-bold">Joyni tanlang</h2>
 					{selectedLocation && (
 						<div className="mt-2 flex items-center bg-blue-900 rounded-lg px-3 py-1">
-							<span className="text-blue-200 text-sm font-medium">
-								{selectedLocation}
-							</span>
-							<button
-								onClick={() => selectLocation("")}
-								className="ml-2 text-blue-300 hover:text-blue-100 text-lg"
-							>
-								✕
-							</button>
+							<span className="text-blue-200 text-sm font-medium">{selectedLocation}</span>
+							<button onClick={() => selectLocation("")} className="ml-2 text-blue-300 hover:text-blue-100 text-lg">✕</button>
 						</div>
 					)}
 				</div>
-
 				{/* Locations List */}
 				<div className="flex-1 overflow-y-auto no-scrollbar p-4">
 					{isLoadingLocations ? (
@@ -109,53 +106,37 @@ const PlaceSelection = () => {
 					)}
 				</div>
 			</div>
-
-			{/* Right Side - Tables */}
+			{/* Right Content - Tables */}
 			<div className="flex-1 flex flex-col h-full">
 				{/* Tables Header */}
 				<div className="p-4 border-b border-zinc-700 bg-zinc-800 flex-shrink-0">
 					<h3 className="text-zinc-100 text-lg font-semibold">
-						{selectedLocation
-							? `${selectedLocation} - Stollarni tanlang`
-							: "Stollar"}
+						{selectedLocation ? `${selectedLocation} - Stollarni tanlang` : "Stollar"}
 					</h3>
 				</div>
-
-				{/* Tables Content */}
+				{/* Tables Grid or Message */}
 				<div className="flex-1 overflow-y-auto no-scrollbar p-4">
 					{!selectedLocation ? (
 						<div className="flex items-center justify-center h-full">
 							<div className="text-center">
-								<div className="text-zinc-400 text-xl mb-2">
-									Avval joyni tanlang
-								</div>
-								<div className="text-zinc-500 text-sm">
-									Stollarni ko'rish uchun chap tarafdan joyni bosing
-								</div>
+								<div className="text-zinc-400 text-xl mb-2">Avval joyni tanlang</div>
+								<div className="text-zinc-500 text-sm">Stollarni ko'rish uchun chap tarafdan joyni bosing</div>
 							</div>
 						</div>
 					) : isLoadingTables ? (
 						<div className="flex items-center justify-center h-full">
-							<div className="text-zinc-400 text-lg">
-								Stollar yuklanmoqda...
-							</div>
+							<div className="text-zinc-400 text-lg">Stollar yuklanmoqda...</div>
 						</div>
 					) : availableTables.length > 0 ? (
 						<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
 							{availableTables.map(table => (
-								<TableCard
-									key={table.id}
-									table={table}
-									onSelect={handleTableSelect}
-								/>
+								<TableCard key={table.id} table={table} onSelect={handleTableSelect} />
 							))}
 						</div>
 					) : (
 						<div className="flex items-center justify-center h-full">
 							<div className="text-center">
-								<div className="text-zinc-400 text-lg mb-2">
-									Bu joyda stollar topilmadi
-								</div>
+								<div className="text-zinc-400 text-lg mb-2">Bu joyda stollar topilmadi</div>
 								<div className="text-zinc-500 text-sm">Boshqa joy tanlang</div>
 							</div>
 						</div>

@@ -15,8 +15,9 @@ const BottomBar = () => {
   }
 
   const handleLogout = () => {
-    logout(); // context orqali logout
-    navigate("/login");
+    // The blocker on OrderDetails will handle saving.
+    // We just need to navigate, and logout will happen via App.jsx logic.
+    logout();
   };
 
   const goBack = () => {
@@ -26,23 +27,23 @@ const BottomBar = () => {
   const isActive = (path) => location.pathname === path;
 
   return (
-    <div className="fixed bottom-0 left-0 w-full max-h-20 bg-zinc-900 border-t border-zinc-800 flex justify-around items-center py-1 z-[1000]">
-      <Link
-        to="/"
+    <div className="fixed bottom-0 left-0 w-full max-h-15 bg-zinc-900 border-t border-zinc-800 flex justify-around items-center py-1 z-[1000]">
+      <button
+        onClick={() => navigate("/")}
         className={`flex flex-col items-center text-base px-4 py-2 rounded-lg transition-all
           ${isActive("/") ? "bg-blue-500 text-white font-bold shadow-lg" : "text-zinc-100 hover:text-blue-400"}`}
       >
         <HomeIcon className="h-6 w-6 mb-1" />
         Orders
-      </Link>
-      <Link
-        to="/create-order"
+      </button>
+      <button
+        onClick={() => navigate("/create-order")}
         className={`flex flex-col items-center text-base px-4 py-2 rounded-lg transition-all
           ${isActive("/create-order") ? "bg-blue-500 text-white font-bold shadow-lg" : "text-zinc-100 hover:text-blue-400"}`}
       >
         <PlusCircleIcon className="h-6 w-6 mb-1" />
         Create Order
-      </Link>
+      </button>
       <button
         onClick={handleLogout}
         className="flex flex-col items-center text-zinc-100 text-base px-4 py-2 hover:text-blue-400 transition-colors"

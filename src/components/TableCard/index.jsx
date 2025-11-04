@@ -1,9 +1,5 @@
 const TableCard = ({ table, onSelect }) => {
 	const handleClick = () => {
-		// Only allow selection of available tables
-		if (!table.is_available) {
-			return;
-		}
 		onSelect(table);
 	};
 
@@ -16,10 +12,9 @@ const TableCard = ({ table, onSelect }) => {
 				aspect-square flex flex-col justify-center
 				${table.is_available 
 					? "bg-zinc-800 border-zinc-600 hover:border-zinc-500 hover:bg-zinc-700" 
-					: "bg-red-900/20 border-red-600 cursor-not-allowed opacity-75"
+					: "bg-red-900/20 border-red-600 hover:border-red-500 hover:bg-red-900/50"
 				}
 			`}
-			disabled={!table.is_available}
 		>
 			<div className="text-center">
 				<h4 className="text-zinc-100 font-bold text-lg mb-2">

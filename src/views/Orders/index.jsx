@@ -6,9 +6,9 @@ import { getAllTables } from "../../services/tables";
 import { getAllUsers } from "../../services/users";
 import { me as getMe } from "../../services/getMe";
 
-const STATS_API_URL = "http://localhost:8000/api/v1/stats/orders-per-user-and-table/";
+const STATS_API_URL = `${import.meta.env.VITE_BASE_URL}order-stats/`;
 const INITIAL_STATS = {
-	orders_per_user: [],
+		orders_per_user: [],
 	pending_order_per_user: [],
 	processing_order_per_user: [],
 	orders_per_table_location: [],
@@ -16,7 +16,7 @@ const INITIAL_STATS = {
 	processing_order_per_location: [],
 };
 
-// Sub-component for Location Filter
+
 const LocationFilter = ({ locations, stats, selectedLocation, onSelect, onClear }) => (
 	<div className="mb-3">
 		<div className="text-zinc-300 font-semibold mb-2">Location</div>
@@ -43,7 +43,7 @@ const LocationFilter = ({ locations, stats, selectedLocation, onSelect, onClear 
 	</div>
 );
 
-// Sub-component for User Filter
+
 const UserFilter = ({ users, stats, selectedUser, onSelect }) => (
 	<div className="mb-3">
 		<div className="text-zinc-300 font-semibold mb-2">User</div>
@@ -79,13 +79,14 @@ const Orders = () => {
 
 	// Fetch stats from backend
 	useEffect(() => {
+		const STATS_API_URL_FIXED = STATS_API_URL;
 		const params = new URLSearchParams();
 		if (orderStatuses.length > 0) {
 			params.append('order_status', orderStatuses.join(','));
 		}
-		fetch(`${STATS_API_URL}?${params.toString()}`)
+		fetch(`${STATS_API_URL_FIXED}?${params.toString()}`)
 			.then(res => res.json())
-			.then(data => setStats(data))
+			.then(data => {setStats(data)})
 			.catch(() => setStats(INITIAL_STATS));
 	}, [orderStatuses]);
 
@@ -119,11 +120,11 @@ const Orders = () => {
 		getOrders(params);
 	}, [orderStatuses, selectedLocation, selectedUser, getOrders, filterMode]);
 
-	return (
-		<div className="min-h-screen h-screen bg-zinc-900 pb-20 flex overflow-hidden">
-			{/* Sidebar Filters */}
-			<div className="w-60 pb-20 bg-zinc-800 border-r-2 border-zinc-700 flex flex-col h-screen max-h-screen shadow-lg z-10">
-				<div className="flex-1 min-h-0 overflow-y-auto p-4 scrollbar-custom">
+		return (
+			<div className="min-h-screen h-screen bg-zinc-900 pb-15 flex overflow-hidden text-[0.9em]">
+				{/* Sidebar Filters */}
+				<div className="w-54 pb-15 bg-zinc-800 border-r-2 border-zinc-700 flex flex-col h-screen max-h-screen shadow-lg z-10 text-[0.9em]">
+			<div className="flex-1 min-h-0 overflow-y-auto p-4 scrollbar-custom text-[0.9em]">
 					
 					{/* Filter mode toggle for non-waiters */}
 					{!isWaiter && (
@@ -176,12 +177,14 @@ const Orders = () => {
 				</div>
 			</div>
 			{/* Orders List */}
-			<div className="flex-1 pb-20 min-w-0 h-screen max-h-screen overflow-y-auto scrollbar-custom">
-				<div className="p-3 w-full grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 justify-center gap-6">
+									<div className="flex-1 pb-15 min-w-0 h-screen max-h-screen overflow-y-auto scrollbar-custom text-[0.9em]">
+										<div className="p-3 w-full grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 justify-center gap-6 text-[0.9em]">
 					{loading ? (
 						<div className="col-span-full text-center text-zinc-300">Loading...</div>
 					) : orders.length ? (
-						orders.map(order => <OrderCard key={order.id} order={order} />)
+						[...orders]
+							.sort((a, b) => new Date(a.c_at) - new Date(b.c_at))
+							.map(order => <OrderCard key={order.id} order={order} />)
 					) : (
 						<div className="col-span-full text-center text-zinc-400">No orders found.</div>
 					)}
