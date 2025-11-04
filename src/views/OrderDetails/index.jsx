@@ -1,3 +1,21 @@
+import React, { useEffect, useState } from "react";
+import Numpad from "../../components/Numpad";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { fetchOrder, updateOrder } from "../../services/orders";
+import { createOrderItem, updateOrderItem, deleteOrderItem } from "../../services/orderItems";
+import api from "../../services/api";
+import { me } from "../../services/getMe";
+import { TableCellsIcon } from "@heroicons/react/24/outline";
+
+const categories = [
+  { key: "frequent", label: "FREQUENTLY USED" },
+  { key: "mains", label: "MAINS" },
+  { key: "salads", label: "SALADS" },
+  { key: "drinks", label: "DRINKS" },
+  { key: "deserts", label: "DESERTS" },
+  { key: "appetizers", label: "APPETIZERS" },
+];
+
 // Helper to show time since last update (uses u_at or c_at)
 function timeSince(date) {
   if (!date) return "-";
@@ -12,29 +30,20 @@ function timeSince(date) {
   const days = Math.floor(hours / 24);
   return `${days} kun${days > 1 ? 'lar' : ''}`;
 }
-  // Allow editing if order_status is 'processing' or 'pending'
-  
-
-  import React, { useEffect, useState } from "react";
-  import Numpad from "../../components/Numpad";
-  import { useParams, useNavigate, useLocation } from "react-router-dom";
-  import { fetchOrder, updateOrder } from "../../services/orders";
-  import { createOrderItem, updateOrderItem, deleteOrderItem } from "../../services/orderItems";
-  import api from "../../services/api";
-  import { me } from "../../services/getMe";
-import {TableCellsIcon } from "@heroicons/react/24/outline";
-  
-  const categories = [
-  { key: "frequent", label: "FREQUENTLY USED" },
-  { key: "mains", label: "MAINS" },
-  { key: "salads", label: "SALADS" },
-  { key: "drinks", label: "DRINKS" },
-  { key: "deserts", label: "DESERTS" },
-  { key: "appetizers", label: "APPETIZERS" },
-];
+// Allow editing if order_status is 'processing' or 'pending'
 
 
 export default function OrderEditPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const params = useParams();
+  const [order, setOrder] = useState(null);
+  const [menuItems, setMenuItems] = useState([]);
+  const [tables, setTables] = useState([]);
+  const [activeTab, setActiveTab] = useState(categories[0].key);
+  const [search, setSearch] = useState("");
+  const [user, setUser] = useState(null);
+
   // Safe navigation: always save before leaving if there are unsaved items
   const safeNavigate = async (...args) => {
     if (newOrderItems.length > 0 || pendingEdits.length > 0) {
@@ -120,15 +129,7 @@ export default function OrderEditPage() {
     };
   }, [newOrderItems, pendingEdits]);
 
-  const location = useLocation();
-  const navigate = useNavigate();
-  const params = useParams();
-  const [order, setOrder] = useState(null);
-  const [menuItems, setMenuItems] = useState([]);
-  const [tables, setTables] = useState([]);
-  const [activeTab, setActiveTab] = useState(categories[0].key);
-  const [search, setSearch] = useState("");
-  const [user, setUser] = useState(null);
+
 
   // Get commission from table details if available (after order is defined)
   const commission = order && order.table_details && order.table_details.commission
@@ -219,40 +220,40 @@ export default function OrderEditPage() {
   if (!order) return <div>Loading order... (Check console for debug info)</div>;
 
   // Filter menu items by tab and search
-    // If search is active, show all items matching search, else filter by tab
-    let filteredMenuItems = [];
-    if (search.trim() !== "") {
-      filteredMenuItems = menuItems.filter(item => item.name.toLowerCase().includes(search.toLowerCase()));
-    } else {
-      filteredMenuItems = menuItems.filter(item => {
-        if (activeTab === "frequent") {
-          return item.is_frequent;
-        }
-        if (activeTab === "mains") {
-          return item.category === "mains";
-        }
-        if (activeTab === "salads") {
-          return item.category === "salads";
-        }
-        if (activeTab === "drinks") {
-          return item.category === "drinks";
-        }
-        if (activeTab === "deserts") {
-          return item.category === "deserts";
-        }
-        if (activeTab === "appetizers") {
-          return item.category === "appetizers";
-        }
-        return true;
-      });
-    }
+  // If search is active, show all items matching search, else filter by tab
+  let filteredMenuItems = [];
+  if (search.trim() !== "") {
+    filteredMenuItems = menuItems.filter(item => item.name.toLowerCase().includes(search.toLowerCase()));
+  } else {
+    filteredMenuItems = menuItems.filter(item => {
+      if (activeTab === "frequent") {
+        return item.is_frequent;
+      }
+      if (activeTab === "mains") {
+        return item.category === "mains";
+      }
+      if (activeTab === "salads") {
+        return item.category === "salads";
+      }
+      if (activeTab === "drinks") {
+        return item.category === "drinks";
+      }
+      if (activeTab === "deserts") {
+        return item.category === "deserts";
+      }
+      if (activeTab === "appetizers") {
+        return item.category === "appetizers";
+      }
+      return true;
+    });
+  }
 
   // Only return JSX after all hooks
   if (!id) return <div>No order id provided. (id is missing)</div>;
   if (!order) return <div>Loading order... (Check console for debug info)</div>;
 
   // Filter menu items by tab and search
-    // If search is active, show all items matching search, else filter by tab
+  // If search is active, show all items matching search, else filter by tab
 
   return (
     <div className="min-h-screen bg-zinc-900 flex items-stretch justify-center p-0 m-0">
@@ -292,7 +293,7 @@ export default function OrderEditPage() {
                 {order.table_details?.location}
               </span>
             </span>
-            </div>
+          </div>
           <div className="flex-1 overflow-y-auto px-2 py-2">
             {/* List order items */}
             {displayedSavedOrderItems.length === 0 && groupedNewOrderItems.length === 0 ? (
@@ -333,7 +334,7 @@ export default function OrderEditPage() {
                               >-</button> */}
                               <span
                                 className="inline-block bg-blue-900 text-blue-200 text-xs font-bold rounded-full px-2 py-1 select-none"
-                                
+
                               >
                                 x{item.quantity}
                               </span>
@@ -404,46 +405,46 @@ export default function OrderEditPage() {
                                 x{item.quantity}
                               </span>
                             ) :  */}
-                            
-                              <span className="inline-block bg-blue-900 text-blue-200 text-sm font-bold rounded-full px-2 py-1">x{item.quantity}</span>
-                            
-      {/* Numpad overlay for editing quantity */}
-      {numpad.open && (
-        <Numpad
-          value={numpad.value}
-          onChange={val => setNumpad(n => ({ ...n, value: val }))}
-          onClose={() => {
-            // Save value to item if valid
-            const val = parseFloat(numpad.value);
-            if (!isNaN(val) && val > 0) {
-              // Saved order item
-              if (String(numpad.itemKey).startsWith('saved-')) {
-                const itemId = Number(numpad.itemKey.replace('saved-', ''));
-                const target = order.items.find(i => i.id === itemId);
 
-                if (target) {
-                  setPendingEdits(prev => {
-                    const exists = prev.find(e => e.id === target.id);
-                    if (exists) {
-                      return prev.map(e => e.id === target.id ? { ...e, quantity: val } : e);
-                    } else {
-                      return [...prev, { id: target.id, quantity: val }];
-                    }
-                  });
-                }
-              } else {
-                // New order item
-                setNewOrderItems(prev => prev.map(i =>
-                  (i.item_name + '__' + i.item_price) === numpad.itemKey
-                    ? { ...i, quantity: val }
-                    : i
-                ));
-              }
-            }
-            setNumpad({ open: false, itemKey: null, value: "" });
-          }}
-        />
-      )}
+                            <span className="inline-block bg-blue-900 text-blue-200 text-sm font-bold rounded-full px-2 py-1">x{item.quantity}</span>
+
+                            {/* Numpad overlay for editing quantity */}
+                            {numpad.open && (
+                              <Numpad
+                                value={numpad.value}
+                                onChange={val => setNumpad(n => ({ ...n, value: val }))}
+                                onClose={() => {
+                                  // Save value to item if valid
+                                  const val = parseFloat(numpad.value);
+                                  if (!isNaN(val) && val > 0) {
+                                    // Saved order item
+                                    if (String(numpad.itemKey).startsWith('saved-')) {
+                                      const itemId = Number(numpad.itemKey.replace('saved-', ''));
+                                      const target = order.items.find(i => i.id === itemId);
+
+                                      if (target) {
+                                        setPendingEdits(prev => {
+                                          const exists = prev.find(e => e.id === target.id);
+                                          if (exists) {
+                                            return prev.map(e => e.id === target.id ? { ...e, quantity: val } : e);
+                                          } else {
+                                            return [...prev, { id: target.id, quantity: val }];
+                                          }
+                                        });
+                                      }
+                                    } else {
+                                      // New order item
+                                      setNewOrderItems(prev => prev.map(i =>
+                                        (i.item_name + '__' + i.item_price) === numpad.itemKey
+                                          ? { ...i, quantity: val }
+                                          : i
+                                      ));
+                                    }
+                                  }
+                                  setNumpad({ open: false, itemKey: null, value: "" });
+                                }}
+                              />
+                            )}
                             {/* <button
                               className="bg-zinc-700 text-zinc-200 rounded-full w-6 h-6 flex items-center justify-center text-lg font-bold hover:bg-blue-700 disabled:opacity-50"
                               onClick={() => {
@@ -534,7 +535,7 @@ export default function OrderEditPage() {
           </div>
         </div>
         {/* Right: Menu and items */}
-  <div className="w-full md:w-2/3 flex flex-col min-h-[500px] bg-zinc-900">
+        <div className="w-full md:w-2/3 flex flex-col min-h-[500px] bg-zinc-900">
           {/* Tabs */}
           <div className="flex bg-zinc-800 border-b border-zinc-700">
             {categories.map(cat => (
