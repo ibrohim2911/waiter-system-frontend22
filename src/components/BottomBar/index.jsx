@@ -1,24 +1,17 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
 import { HomeIcon, PlusCircleIcon, ArrowLeftOnRectangleIcon, ArrowUturnLeftIcon, UserIcon } from "@heroicons/react/24/outline";
 
 
 const BottomBar = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth(); // logout function from context
+  // const { logout } = useAuth(); // logout function from context
 
   if (location.pathname === "/login") {
     return null;
   }
-
-  const handleLogout = () => {
-    // The blocker on OrderDetails will handle saving.
-    // We just need to navigate, and logout will happen via App.jsx logic.
-    logout();
-  };
 
   const goBack = () => {
     navigate(-1);
@@ -45,7 +38,7 @@ const BottomBar = () => {
         Create Order
       </button>
       <button
-        onClick={handleLogout}
+        onClick={() => navigate("logout")}
         className="flex flex-col items-center text-zinc-100 text-base px-4 py-2 hover:text-blue-400 transition-colors"
       >
         <ArrowLeftOnRectangleIcon className="h-6 w-6 mb-1" />

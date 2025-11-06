@@ -5,6 +5,7 @@ import App from "./App.jsx";
 import {AuthProvider} from "./context/AuthContext.jsx";
 import {createBrowserRouter, RouterProvider} from "react-router-dom";
 import {Orders, PlaceSelection, OrderDetails, Profile} from "./views";
+import LogoutInvisiblePage from "./helpers/LogoutInvisiblePage/index.jsx";
 
 const router = createBrowserRouter([
 	{
@@ -27,6 +28,10 @@ const router = createBrowserRouter([
 				path: "profile",
 				element: <Profile />,
 			},
+      {
+        path: "logout",
+        element: <LogoutInvisiblePage />
+      }
 		],
 	},
 ]);
