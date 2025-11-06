@@ -32,7 +32,7 @@ const OrderCard = ({order}) => {
 			const created = new Date(order.c_at);
 			const now = new Date();
 			const minutes = ((now - created) / 1000 / 60).toFixed(2);
-			console.log(`Order ID: ${order.id}, Minutes since created: ${minutes}`);
+			// console.log(`Order ID: ${order.id}, Minutes since created: ${minutes}`);
 			return minutes;
 		}
 		return null;
