@@ -1,30 +1,25 @@
-
-import { useAuth } from "./context/AuthContext"
-import { Login, Orders, PlaceSelection, OrderDetails, Profile } from "./views"
-import { BottomBar } from "./components"
-import { Routes, Route } from "react-router-dom"
+import { useAuth } from "./context/AuthContext";
+import { Login } from "./views";
+import { Outlet } from "react-router-dom";
+import { BottomBar } from "./components";
 
 function App() {
+	const { token } = useAuth();
 
-  const { token } = useAuth()
+	if (!token) {
+		return (
+			<div className="min-h-screen bg-zinc-900">
+				<Login />
+			</div>
+		);
+	}
 
-  return (
-    <div className="min-h-screen bg-zinc-900">
-      {!token ? <Login /> :
-        (
-          <>
-            <Routes>
-              <Route path="/" element={<Orders />} />
-              <Route path="/create-order" element={<PlaceSelection />} />
-              <Route path="/order-details" element={<OrderDetails />} />
-              <Route path="/profile" element={<Profile />} />
-            </Routes>
-            <BottomBar />
-          </>
-        )
-      }
-    </div>
-  )
+	return (
+		<div className="min-h-screen bg-zinc-900">
+			<Outlet />
+			<BottomBar />
+		</div>
+	);
 }
 
-export default App
+export default App;
