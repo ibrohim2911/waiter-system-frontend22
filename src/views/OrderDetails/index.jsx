@@ -3,7 +3,8 @@ import Numpad from "../../components/Numpad";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { fetchOrder, updateOrder } from "../../services/orders";
 import { createOrderItem, updateOrderItem, deleteOrderItem } from "../../services/orderItems";
-import api from "../../services/api";
+import { PlusIcon, MinusIcon, XMarkIcon, CalculatorIcon } from "@heroicons/react/24/solid";
+import api from "../../services/api"; 
 import { me } from "../../services/getMe";
 import { TableCellsIcon } from "@heroicons/react/24/outline";
 
@@ -43,6 +44,7 @@ export default function OrderEditPage() {
   const [activeTab, setActiveTab] = useState(categories[0].key);
   const [search, setSearch] = useState("");
   const [user, setUser] = useState(null);
+  const [selectedItem, setSelectedItem] = useState(null); // To track selected item for editing
 
   // Safe navigation: always save before leaving if there are unsaved items
   const safeNavigate = async (...args) => {
@@ -129,6 +131,102 @@ export default function OrderEditPage() {
     };
   }, [newOrderItems, pendingEdits]);
 
+  const handleEditItem = () => {
+    if (!selectedItem || !isEditable) return;
+
+    if (selectedItem.type === 'saved') {
+      const item = order.items.find(i => i.id === selectedItem.id);
+      if (item) {
+        const edit = pendingEdits.find(e => e.id === item.id);
+        const currentQuantity = edit ? edit.quantity : item.quantity;
+        setNumpad({ open: true, itemKey: `saved-${item.id}`, value: String(Number(currentQuantity)) });
+      }
+    } else if (selectedItem.type === 'new') {
+      const item = groupedNewOrderItems.find(i => (i.item_name + '__' + i.item_price) === selectedItem.key);
+      if (item) {
+        setNumpad({ open: true, itemKey: selectedItem.key, value: String(Number(item.quantity)) });
+      }
+    }
+  };
+
+  const handleRemoveItem = () => {
+    if (!selectedItem || !isEditable) return;
+
+    if (selectedItem.type === 'saved') {
+      const itemId = selectedItem.id;
+      setPendingEdits(prev => {
+        const existingEditIndex = prev.findIndex(e => e.id === itemId);
+        if (existingEditIndex > -1) {
+          const newEdits = [...prev];
+          newEdits[existingEditIndex] = { id: itemId, deleted: true };
+          return newEdits;
+        }
+        return [...prev, { id: itemId, deleted: true }];
+      });
+    } else if (selectedItem.type === 'new') {
+      const itemKey = selectedItem.key;
+      setNewOrderItems(prev => prev.filter(i => (i.item_name + '__' + i.item_price) !== itemKey));
+    }
+
+    setSelectedItem(null);
+  };
+
+  const handleClearUnsaved = () => {
+    if (!isEditable) return;
+    setNewOrderItems([]);
+    setPendingEdits([]);
+    setSelectedItem(null);
+  };
+
+  const handleIncrementItem = () => {
+    if (!selectedItem || !isEditable) return;
+
+    if (selectedItem.type === 'saved') {
+      const itemId = selectedItem.id;
+      const item = order.items.find(i => i.id === itemId);
+      if (item) {
+        const edit = pendingEdits.find(e => e.id === itemId);
+        const currentQuantity = edit ? edit.quantity : item.quantity;
+        const newQuantity = Number(currentQuantity) + 1;
+
+        setPendingEdits(prev => {
+          const existingEditIndex = prev.findIndex(e => e.id === itemId);
+          if (existingEditIndex > -1) {
+            return prev.map((e, index) => index === existingEditIndex ? { ...e, quantity: newQuantity, deleted: false } : e);
+          }
+          return [...prev, { id: itemId, quantity: newQuantity }];
+        });
+      }
+    } else if (selectedItem.type === 'new') {
+      const itemKey = selectedItem.key;
+      setNewOrderItems(prev => prev.map(i => (i.item_name + '__' + i.item_price) === itemKey ? { ...i, quantity: Number(i.quantity) + 1 } : i));
+    }
+  };
+
+  const handleDecrementItem = () => {
+    if (!selectedItem || !isEditable) return;
+
+    if (selectedItem.type === 'saved') {
+      const itemId = selectedItem.id;
+      const item = order.items.find(i => i.id === itemId);
+      if (item) {
+        const edit = pendingEdits.find(e => e.id === itemId);
+        const currentQuantity = edit ? edit.quantity : item.quantity;
+        const newQuantity = Math.max(0, Number(currentQuantity) - 1);
+
+        if (newQuantity === 0) {
+          handleRemoveItem();
+        } else {
+          setPendingEdits(prev => prev.map(e => e.id === itemId ? { ...e, quantity: newQuantity, deleted: false } : e));
+        }
+      }
+    } else if (selectedItem.type === 'new') {
+      const itemKey = selectedItem.key;
+      setNewOrderItems(prev => prev.map(i => (i.item_name + '__' + i.item_price) === itemKey ? { ...i, quantity: Math.max(0, Number(i.quantity) - 1) } : i).filter(i => i.quantity > 0));
+    }
+  };
+
+
 
 
   // Get commission from table details if available (after order is defined)
@@ -140,7 +238,6 @@ export default function OrderEditPage() {
   const id = location.state?.orderid || params.orderid;
 
   // Debug logging
-  console.log("OrderEditPage: id=", id, "order=", order, "user=", user);
 
   // Fetch user info on mount
   useEffect(() => {
@@ -303,7 +400,11 @@ export default function OrderEditPage() {
                 {displayedSavedOrderItems.length > 0 && (
                   <ul className="space-y-2 mb-1">
                     {displayedSavedOrderItems.map(item => (
-                      <li key={"saved-" + item.id} className="flex text-[0.8em] items-center justify-between bg-zinc-800 rounded-lg shadow-sm px-3 py-1 border border-zinc-700">
+                      <li
+                        key={"saved-" + item.id}
+                        className={`flex text-[0.8em] items-center justify-between rounded-lg shadow-sm px-3 py-1 border cursor-pointer ${selectedItem?.type === 'saved' && selectedItem?.id === item.id ? 'bg-blue-800 border-blue-600' : 'bg-zinc-800 border-zinc-700'}`}
+                        onClick={() => setSelectedItem({ type: 'saved', id: item.id })}
+                      >
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-zinc-100 truncate max-w-[110px]">{item.item_name}</span>
                         </div>
@@ -373,7 +474,11 @@ export default function OrderEditPage() {
                     <div className="text-xs text-blue-400 mb-1">New Items (not saved yet)</div>
                     <ul className="space-y-2">
                       {groupedNewOrderItems.map(item => (
-                        <li key={"new-" + item.item_name + '__' + item.item_price} className="flex text-[0.8em] items-center justify-between bg-zinc-800 rounded-lg shadow-sm px-2 py-1 border border-zinc-700">
+                        <li
+                          key={"new-" + item.item_name + '__' + item.item_price}
+                          className={`flex text-[0.8em] items-center justify-between rounded-lg shadow-sm px-2 py-1 border cursor-pointer ${selectedItem?.type === 'new' && selectedItem?.key === (item.item_name + '__' + item.item_price) ? 'bg-blue-800 border-blue-600' : 'bg-zinc-800 border-zinc-700'}`}
+                          onClick={() => setSelectedItem({ type: 'new', key: item.item_name + '__' + item.item_price })}
+                        >
                           <div className="flex items-center gap-2">
                             <span className="font-semibold  text-zinc-100 truncate max-w-[110px]">{item.item_name}</span>
                           </div>
@@ -409,42 +514,7 @@ export default function OrderEditPage() {
                             <span className="inline-block bg-blue-900 text-blue-200 text-sm font-bold rounded-full px-2 py-1">x{item.quantity}</span>
 
                             {/* Numpad overlay for editing quantity */}
-                            {numpad.open && (
-                              <Numpad
-                                value={numpad.value}
-                                onChange={val => setNumpad(n => ({ ...n, value: val }))}
-                                onClose={() => {
-                                  // Save value to item if valid
-                                  const val = parseFloat(numpad.value);
-                                  if (!isNaN(val) && val > 0) {
-                                    // Saved order item
-                                    if (String(numpad.itemKey).startsWith('saved-')) {
-                                      const itemId = Number(numpad.itemKey.replace('saved-', ''));
-                                      const target = order.items.find(i => i.id === itemId);
-
-                                      if (target) {
-                                        setPendingEdits(prev => {
-                                          const exists = prev.find(e => e.id === target.id);
-                                          if (exists) {
-                                            return prev.map(e => e.id === target.id ? { ...e, quantity: val } : e);
-                                          } else {
-                                            return [...prev, { id: target.id, quantity: val }];
-                                          }
-                                        });
-                                      }
-                                    } else {
-                                      // New order item
-                                      setNewOrderItems(prev => prev.map(i =>
-                                        (i.item_name + '__' + i.item_price) === numpad.itemKey
-                                          ? { ...i, quantity: val }
-                                          : i
-                                      ));
-                                    }
-                                  }
-                                  setNumpad({ open: false, itemKey: null, value: "" });
-                                }}
-                              />
-                            )}
+                            
                             {/* <button
                               className="bg-zinc-700 text-zinc-200 rounded-full w-6 h-6 flex items-center justify-center text-lg font-bold hover:bg-blue-700 disabled:opacity-50"
                               onClick={() => {
@@ -477,8 +547,62 @@ export default function OrderEditPage() {
                 )}
               </>
             )}
+            {numpad.open && (
+              <Numpad
+                value={numpad.value}
+                onChange={val => setNumpad(n => ({ ...n, value: val }))}
+                onClose={() => {
+                  // Save value to item if valid
+                  const val = parseFloat(numpad.value);
+                  if (!isNaN(val)) {
+                    // Saved order item
+                    if (String(numpad.itemKey).startsWith('saved-')) {
+                      const itemId = Number(numpad.itemKey.replace('saved-', ''));
+                      const target = order.items.find(i => i.id === itemId);
+
+                      if (target) {
+                        setPendingEdits(prev => {
+                          const exists = prev.find(e => e.id === target.id);
+                          const newQuantity = Math.max(0, val);
+                          if (newQuantity === 0) {
+                            return [...prev.filter(e => e.id !== itemId), { id: itemId, deleted: true }];
+                          }
+                          if (exists) {
+                            return prev.map(e => e.id === target.id ? { ...e, quantity: newQuantity, deleted: false } : e);
+                          } else {
+                            return [...prev, { id: target.id, quantity: newQuantity }];
+                          }
+                        });
+                        setSelectedItem(null);
+                      }
+                    } else {
+                      // New order item
+                      setNewOrderItems(prev => prev.map(i => (i.item_name + '__' + i.item_price) === numpad.itemKey ? { ...i, quantity: val } : i).filter(i => i.quantity > 0));
+                      setSelectedItem(null);
+                    }
+                  }
+                  setNumpad({ open: false, itemKey: null, value: "" });
+                }}
+              />
+            )}
           </div>
           <div className="border-t border-zinc-800 px-2 py-1 bg-zinc-800">
+            {selectedItem && isEditable && (
+              <div className="flex justify-around items-center gap-2 mb-2 p-2 bg-zinc-700 rounded-lg">
+                <button onClick={handleDecrementItem} className="p-2 bg-red-600 text-white rounded-full font-bold hover:bg-red-500">
+                  <MinusIcon className="h-5 w-5" />
+                </button>
+                <button onClick={handleIncrementItem} className="p-2 bg-green-600 text-white rounded-full font-bold hover:bg-green-500">
+                  <PlusIcon className="h-5 w-5" />
+                </button>
+                <button onClick={handleEditItem} className="p-2 bg-yellow-600 text-white rounded-full font-bold hover:bg-yellow-500">
+                  <CalculatorIcon className="h-5 w-5" />
+                </button>
+                <button onClick={handleRemoveItem} className="p-2 bg-red-800 text-white rounded-full font-bold hover:bg-red-700">
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+            )}
             {/* Discount and Surcharge removed */}
             <div className="flex justify-between text-xs text-zinc-300">
               <span>Subtotal:</span>
@@ -489,7 +613,7 @@ export default function OrderEditPage() {
             </div>
           </div>
           <div className="flex gap-2 p-1 border-t border-zinc-800 bg-zinc-800">
-            <button className="flex-1 py-1 bg-red-700 text-zinc-100 rounded-lg font-bold text-sm  hover:bg-red-600 transition disabled:opacity-50" onClick={() => isEditable && setNewOrderItems([])} disabled={!isEditable}> Clear</button>
+            <button className="flex-1 py-1 bg-red-700 text-zinc-100 rounded-lg font-bold text-sm  hover:bg-red-600 transition disabled:opacity-50" onClick={handleClearUnsaved} disabled={!isEditable}> Clear</button>
             <button className="flex-1 py-1 bg-blue-700 text-zinc-100 rounded-lg font-bold text-sm flex items-center justify-center gap-1 hover:bg-blue-600 transition disabled:opacity-50" onClick={isEditable ? handleSave : undefined} disabled={!isEditable}>
               <span role="img" aria-label="save"></span> Save
             </button>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { me as getMe } from '../../services/getMe';
 import { useAuth } from '../../context/AuthContext';
+import { changePassword } from '../../services/auth';
 import { getOrderStats, getUserStats } from '../../services/statistics';
 import { UserCircleIcon, ArrowLeftOnRectangleIcon, ChartBarIcon, CurrencyDollarIcon, ClipboardDocumentListIcon, UsersIcon, TableCellsIcon, CakeIcon } from '@heroicons/react/24/solid';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
@@ -16,6 +17,13 @@ const Admin = () => {
   const [userStats, setUserStats] = useState([]);
   const [error, setError] = useState('');
   const [statsPeriod, setStatsPeriod] = useState({ period: "day", startDate: new Date(), endDate: new Date() });
+  const [passwords, setPasswords] = useState({
+    old_password: '',
+    new_password: '',
+    confirm_password: ''
+  });
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
 
   const handlePeriodChange = (period) => {
     const now = new Date();
@@ -71,6 +79,38 @@ const Admin = () => {
     };
     fetchUser();
   }, [statsPeriod]);
+
+  const handlePasswordInputChange = (e) => {
+    const { name, value } = e.target;
+    setPasswords(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    if (passwords.new_password !== passwords.confirm_password) {
+      setPasswordError("New passwords don't match.");
+      return;
+    }
+    
+    try {
+      await changePassword({ old_password: passwords.old_password, new_password: passwords.new_password, confirm_password: passwords.confirm_password });
+      setPasswordSuccess('Password changed successfully!');
+      setPasswords({ old_password: '', new_password: '', confirm_password: '' }); // Clear fields on success
+    } catch (err) {
+      // Handle potential error messages from the API
+      if (err && typeof err === 'object' && err.detail) {
+        setPasswordError(err.detail);
+      } else if (err && typeof err === 'object' && err.error) {
+        setPasswordError(err.error);
+      } else {
+        setPasswordError('Failed to change password. Please check the old password.');
+      }
+      console.error(err);
+    }
+  };
   const totalamount = orderStats?.all_data?.[0]?.all_amount || 0;
   const totalEarned = orderStats?.all_data?.[0]?.all_earned || 0;
   const totalearned4 = totalEarned * 0.4
@@ -97,6 +137,38 @@ const Admin = () => {
               <span className="text-zinc-200 text-sm">{user.phone_number || 'Not provided'}</span>
             </div>
           </div>
+          <form onSubmit={handlePasswordChange} className="mt-4 border-t border-zinc-700 pt-4 space-y-3">
+            <h3 className="font-semibold text-zinc-300">Reset Password</h3>
+            <input
+              type="password"
+              name="old_password"
+              placeholder="Old Password"
+              value={passwords.old_password}
+              onChange={handlePasswordInputChange}
+              className="w-full bg-zinc-700 text-white p-2 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <input
+              type="password"
+              name="new_password"
+              placeholder="New Password"
+              value={passwords.new_password}
+              onChange={handlePasswordInputChange}
+              className="w-full bg-zinc-700 text-white p-2 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <input
+              type="password"
+              name="confirm_password"
+              placeholder="Confirm New Password"
+              value={passwords.confirm_password}
+              onChange={handlePasswordInputChange}
+              className="w-full bg-zinc-700 text-white p-2 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {passwordError && <p className="text-red-400 text-xs">{passwordError}</p>}
+            {passwordSuccess && <p className="text-green-400 text-xs">{passwordSuccess}</p>}
+            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">
+              Update Password
+            </button>
+          </form>
           <div className="mt-4 border-t border-zinc-700 pt-4">
             <button
               onClick={logout}
