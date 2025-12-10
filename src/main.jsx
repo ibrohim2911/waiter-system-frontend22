@@ -6,6 +6,8 @@ import {AuthProvider} from "./context/AuthContext.jsx";
 import {createBrowserRouter, RouterProvider} from "react-router-dom";
 import {Orders, PlaceSelection, OrderDetails, Profile} from "./views";
 import LogoutInvisiblePage from "./helpers/LogoutInvisiblePage/index.jsx";
+import Inventory from "./views/inventory/index.jsx";
+import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
 const router = createBrowserRouter([
 	{
@@ -28,10 +30,19 @@ const router = createBrowserRouter([
 				path: "profile",
 				element: <Profile />,
 			},
-      {
-        path: "logout",
-        element: <LogoutInvisiblePage />
-      }
+			{
+				element: <ProtectedRoute allowedRoles={["admin"]} />,
+				children: [
+					{
+						path: "/inventory",
+						element: <Inventory />,
+					},
+				],
+			},
+			{
+				path: "logout",
+				element: <LogoutInvisiblePage />,
+			},
 		],
 	},
 ]);

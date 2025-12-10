@@ -15,7 +15,6 @@ const Login = () => {
 	const pinLogin = usePinLogin();
 	const navigate = page => {
 		goPage(page);
-		window.location.reload();
 	};
 
 	const onSubmit = async (values, actions) => {
