@@ -4,9 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { changePassword } from '../../services/auth';
 import { getOrderStats, getUserStats } from '../../services/statistics';
 import { UserCircleIcon, ArrowLeftOnRectangleIcon, ChartBarIcon, CurrencyDollarIcon, ClipboardDocumentListIcon, UsersIcon, TableCellsIcon, CakeIcon } from '@heroicons/react/24/solid';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
-import DatePicker from 'react-datepicker';
-import "react-datepicker/dist/react-datepicker.css";
+import { format } from 'date-fns';
+import { DateRangePicker } from '../../components';
 
 const Admin = () => {
   const { logout } = useAuth();
@@ -25,26 +24,26 @@ const Admin = () => {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
 
-  const handlePeriodChange = (period) => {
-    const now = new Date();
-    let startDate = now;
-    let endDate = now;
-    let newPeriod = period;
+  // const handlePeriodChange = (period) => {
+  //   const now = new Date();
+  //   let startDate = now;
+  //   let endDate = now;
+  //   let newPeriod = period;
 
-    if (period === 'week') {
-      startDate = startOfWeek(now);
-      endDate = endOfWeek(now);
-    } else if (period === 'month') {
-      startDate = startOfMonth(now);
-      endDate = endOfMonth(now);
-    } else if (period === 'custom') {
-      // For custom, we don't change dates here, user picks them.
-      // We just set the period.
-    }
-    // For 'day', default values are correct.
+  //   if (period === 'week') {
+  //     startDate = startOfWeek(now);
+  //     endDate = endOfWeek(now);
+  //   } else if (period === 'month') {
+  //     startDate = startOfMonth(now);
+  //     endDate = endOfMonth(now);
+  //   } else if (period === 'custom') {
+  //     // For custom, we don't change dates here, user picks them.
+  //     // We just set the period.
+  //   }
+  //   // For 'day', default values are correct.
 
-    setStatsPeriod({ period: newPeriod, startDate, endDate });
-  };
+  //   setStatsPeriod({ period: newPeriod, startDate, endDate });
+  // };
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -94,7 +93,7 @@ const Admin = () => {
       setPasswordError("New passwords don't match.");
       return;
     }
-    
+
     try {
       await changePassword({ old_password: passwords.old_password, new_password: passwords.new_password, confirm_password: passwords.confirm_password });
       setPasswordSuccess('Password changed successfully!');
@@ -185,56 +184,26 @@ const Admin = () => {
             <h2 className="text-2xl font-bold text-zinc-200 flex items-center gap-2"><ChartBarIcon className="h-6 w-6" /> Statistics </h2>
             {/* Period Filter */}
             <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2 bg-zinc-800 p-1 rounded-lg">
-                {['day', 'week', 'month'].map(p => (
-                  <button
-                    key={p}
-                    onClick={() => handlePeriodChange(p)}
-                    className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors capitalize ${statsPeriod.period === p ? 'bg-blue-600 text-white' : 'text-zinc-300 hover:bg-zinc-700'}`}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-2">
-                  <DatePicker
-                    selected={statsPeriod.startDate}
-                    onChange={(date) => setStatsPeriod(prev => ({ ...prev, startDate: date, period: 'custom' }))}
-                    selectsStart
-                    startDate={statsPeriod.startDate}
-                    endDate={statsPeriod.endDate}
-                    className="bg-zinc-700 text-white p-2 rounded-md w-32 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <span className="text-zinc-400">to</span>
-                  <DatePicker
-                    selected={statsPeriod.endDate}
-                    onChange={(date) => setStatsPeriod(prev => ({ ...prev, endDate: date, period: 'custom' }))}
-                    selectsEnd
-                    startDate={statsPeriod.startDate}
-                    endDate={statsPeriod.endDate}
-                    minDate={statsPeriod.startDate}
-                    className="bg-zinc-700 text-white p-2 rounded-md w-32 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-              </div>
+              <DateRangePicker onChange={setStatsPeriod} />
             </div>
           </div>
 
           {/* General Stats */}
           <div className="mb-6 flex gap-6 justify-around">
             <div className="bg-zinc-800 p-4 rounded-lg shadow-lg text-center">
-              <CurrencyDollarIcon className="h-8 w-8 mx-auto text-green-400 mb-2" /><br/>
+              <CurrencyDollarIcon className="h-8 w-8 mx-auto text-green-400 mb-2" /><br />
               <p className="text-zinc-400 text-sm">Total Earned</p>
               <p className="text-2xl font-bold text-white">${totalEarned.toFixed(2)}</p>
             </div>
-            
+
             <div className="bg-zinc-800 p-4 rounded-lg shadow-lg text-center">
-              <CurrencyDollarIcon className="h-8 w-8 mx-auto text-green-400 mb-2" /><br/>
+              <CurrencyDollarIcon className="h-8 w-8 mx-auto text-green-400 mb-2" /><br />
               <p className="text-zinc-400 text-sm">Total Earned</p>
               <p className="text-2xl font-bold text-white">${totalearned4.toFixed(2)}</p>
             </div>
-          
+
             <div className="bg-zinc-800 p-4 rounded-lg shadow-lg text-center">
-              <CurrencyDollarIcon className="h-8 w-8 mx-auto text-green-400 mb-2" /><br/>
+              <CurrencyDollarIcon className="h-8 w-8 mx-auto text-green-400 mb-2" /><br />
               <p className="text-zinc-400 text-sm">Total Amount</p>
               <p className="text-2xl font-bold text-white">${totalamount.toFixed(2)}</p>
             </div>

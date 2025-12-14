@@ -6,8 +6,9 @@ import {AuthProvider} from "./context/AuthContext.jsx";
 import {createBrowserRouter, RouterProvider} from "react-router-dom";
 import {Orders, PlaceSelection, OrderDetails, Profile} from "./views";
 import LogoutInvisiblePage from "./helpers/LogoutInvisiblePage/index.jsx";
-import Inventory from "./views/inventory/index.jsx";
+import Inventory from "./views/Inventory/index.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
+import Crud from "./views/Inventory/Crud/index.jsx";
 
 const router = createBrowserRouter([
 	{
@@ -36,6 +37,15 @@ const router = createBrowserRouter([
 					{
 						path: "/inventory",
 						element: <Inventory />,
+					},
+				],
+			},
+			{
+				element: <ProtectedRoute allowedRoles={["admin"]} />,
+				children: [
+					{
+						path: "inventory/crud",
+						element: <Crud />,
 					},
 				],
 			},
