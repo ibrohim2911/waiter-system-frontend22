@@ -5,66 +5,8 @@ import OrderCard from "../../components/OrderCard";
 import { getAllTables } from "../../services/tables";
 import { getAllUsers } from "../../services/users";
 import { useAuth } from "../../context/AuthContext";
-
-const STATS_API_URL = `${import.meta.env.VITE_BASE_URL}order-stats/`;
-const INITIAL_STATS = {
-		orders_per_user: [],
-	pending_order_per_user: [],
-	processing_order_per_user: [],
-	orders_per_table_location: [],
-	pending_order_per_location: [],
-	processing_order_per_location: [],
-};
-
-
-const LocationFilter = ({ locations, stats, selectedLocation, onSelect, onClear }) => (
-	<div className="mb-3">
-		<div className="text-zinc-300 font-semibold mb-2">Location</div>
-		<div className="space-y-2">
-			{locations.map(location => {
-				const locationStat = stats.orders_per_table_location.find(l => l.table__location === location);
-				const pendingStat = stats.pending_order_per_location.find(l => l.table__location === location);
-				const processingStat = stats.processing_order_per_location.find(l => l.table__location === location);
-				return (
-					<div
-						key={location}
-						className={`cursor-pointer rounded-lg p-2 transition-all border-2 flex items-center justify-between ${selectedLocation === location ? "bg-blue-600 border-blue-400 text-white" : "bg-zinc-700 border-zinc-600 text-zinc-200 hover:bg-zinc-600"}`}
-						onClick={() => onSelect(location)}
-					>
-						<span>{location}</span>
-						<span className="ml-2 text-xs font-bold text-blue-300">{pendingStat?.order_count || 0} / {processingStat?.order_count || 0}</span>
-					</div>
-				);
-			})}
-		</div>
-		{selectedLocation && (
-			<button className="mt-2 text-blue-300 hover:text-blue-100 text-sm" onClick={onClear}>Clear Location</button>
-		)}
-	</div>
-);
-
-
-const UserFilter = ({ users, stats, selectedUser, onSelect }) => (
-	<div className="mb-3">
-		<div className="text-zinc-300 font-semibold mb-2">User</div>
-		<div className="space-y-2">
-			{users.map(user => {
-				const pending = stats.pending_order_per_user.find(u => String(u.user_id) === String(user.id));
-				const processing = stats.processing_order_per_user.find(u => String(u.user_id) === String(user.id));
-				return (
-					<div
-						key={user.id}
-						className={`cursor-pointer rounded-lg p-2 transition-all border-2 flex items-center justify-between ${selectedUser === String(user.id) ? "bg-blue-600 border-blue-400 text-white" : "bg-zinc-700 border-zinc-600 text-zinc-200 hover:bg-zinc-600"}`}
-						onClick={() => onSelect(String(user.id))}
-					>
-						<span>{user.username || user.name || user.id}</span>
-						<span className="ml-2 text-xs font-bold text-blue-300">{pending?.pending_order_count || 0} / {processing?.processing_order_count || 0}</span>
-					</div>
-				);
-			})}
-		</div>
-	</div>
-);
+import { LocationFilter, UserFilter } from "./components";
+import { STATS_API_URL, INITIAL_STATS } from "./constants";
 
 const Orders = () => {
 	const { orders, getOrders, loading } = useOrders();
@@ -118,51 +60,50 @@ const Orders = () => {
 		if (selectedLocation) {
 			params["table__location"] = selectedLocation;
 		}
-		if (filterMode === 'user' && selectedUser) {
+		if (filterMode === "user" && selectedUser) {
 			params["user"] = selectedUser;
 		}
 		getOrders(params);
 	}, [orderStatuses, selectedLocation, selectedUser, getOrders, filterMode]);
 
-		return (
-			<div className="min-h-screen h-screen bg-zinc-900 pb-15 flex overflow-hidden text-[0.9em]">
-				{/* Sidebar Filters */}
-				<div className="w-54 pb-15 bg-zinc-800 border-r-2 border-zinc-700 flex flex-col h-screen max-h-screen shadow-lg z-10 text-[0.9em]">
-			<div className="flex-1 min-h-0 overflow-y-auto p-4 scrollbar-custom text-[0.9em]">
-					
+	return (
+		<div className="min-h-screen h-screen bg-zinc-900 pb-15 flex overflow-hidden text-[0.9em]">
+			{/* Sidebar Filters */}
+			<div className="w-54 pb-15 bg-zinc-800 border-r-2 border-zinc-700 flex flex-col h-screen max-h-screen shadow-lg z-10 text-[0.9em]">
+				<div className="flex-1 min-h-0 overflow-y-auto p-4 scrollbar-custom text-[0.9em]">
 					{/* Filter mode toggle for non-waiters */}
 					{!isWaiter && (
 						<>
 							<div className="flex gap-2 mb-3">
 								<button
-									className={`flex-1 py-1 rounded text-xs font-semibold border ${filterMode === 'location' ? 'bg-blue-600 text-white' : 'bg-zinc-700 text-zinc-200'} transition`}
+									className={`flex-1 py-1 rounded text-xs font-semibold border ${filterMode === "location" ? "bg-blue-600 text-white" : "bg-zinc-700 text-zinc-200"} transition`}
 									onClick={() => {
-										setFilterMode('location');
+										setFilterMode("location");
 										setSelectedUser(""); // Clear user filter when switching
 									}}
 								>
 									Location Filter
 								</button>
 								<button
-									className={`flex-1 py-1 rounded text-xs font-semibold border ${filterMode === 'user' ? 'bg-blue-600 text-white' : 'bg-zinc-700 text-zinc-200'} transition`}
+									className={`flex-1 py-1 rounded text-xs font-semibold border ${filterMode === "user" ? "bg-blue-600 text-white" : "bg-zinc-700 text-zinc-200"} transition`}
 									onClick={() => {
-										setFilterMode('user');
+										setFilterMode("user");
 										setSelectedLocation(""); // Clear location filter when switching
 									}}
 								>
 									User Filter
 								</button>
 							</div>
-							{filterMode === 'location' && (
+							{filterMode === "location" && (
 								<LocationFilter
 									locations={locations}
 									stats={stats}
 									selectedLocation={selectedLocation}
-									onSelect={(location) => setSelectedLocation(selectedLocation === location ? "" : location)}
+									onSelect={location => setSelectedLocation(selectedLocation === location ? "" : location)}
 									onClear={() => setSelectedLocation("")}
 								/>
 							)}
-							{filterMode === 'user' && (
+							{filterMode === "user" && (
 								<UserFilter users={users} stats={stats} selectedUser={selectedUser} onSelect={setSelectedUser} />
 							)}
 						</>
@@ -174,15 +115,15 @@ const Orders = () => {
 							locations={locations}
 							stats={stats}
 							selectedLocation={selectedLocation}
-							onSelect={(location) => setSelectedLocation(selectedLocation === location ? "" : location)}
+							onSelect={location => setSelectedLocation(selectedLocation === location ? "" : location)}
 							onClear={() => setSelectedLocation("")}
 						/>
 					)}
 				</div>
 			</div>
 			{/* Orders List */}
-									<div className="flex-1 pb-15 min-w-0 h-screen max-h-screen overflow-y-auto scrollbar-custom text-[0.9em]">
-										<div className="p-3 w-full grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 justify-center gap-6 text-[0.9em]">
+			<div className="flex-1 pb-15 min-w-0 h-screen max-h-screen overflow-y-auto scrollbar-custom text-[0.9em]">
+				<div className="p-3 w-full grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 justify-center gap-6 text-[0.9em]">
 					{loading ? (
 						<div className="col-span-full text-center text-zinc-300">Loading...</div>
 					) : orders.length ? (
@@ -193,7 +134,6 @@ const Orders = () => {
 						<div className="col-span-full text-center text-zinc-400">No orders found.</div>
 					)}
 				</div>
-				
 			</div>
 		</div>
 	);
