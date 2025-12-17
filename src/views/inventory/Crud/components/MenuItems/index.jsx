@@ -9,6 +9,7 @@ const MenuItems = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -84,9 +85,17 @@ const MenuItems = () => {
   };
 
   return (
-    <div className="mt-8">
+    <div className="mt-8" onClick={() => setMobileOpen((s) => !s)}>
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Menu Items</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-semibold">Menu Items</h2>
+          <button
+            className="md:hidden px-2 py-1 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-sm"
+            onClick={() => setMobileOpen((s) => !s)}
+          >
+            {mobileOpen ? 'Hide list' : 'Show list'}
+          </button>
+        </div>
         <button onClick={openCreate} className="px-3 py-1 bg-green-600 hover:bg-green-500 text-white rounded text-sm">Add Menu Item</button>
       </div>
 
@@ -132,7 +141,8 @@ const MenuItems = () => {
       </div>
 
       {/* Mobile */}
-      <div className="block md:hidden space-y-3">
+      {mobileOpen && (
+        <div className="block md:hidden space-y-3">
         {loading ? (
           <EmptyState text="Loading..." />
         ) : error ? (
@@ -160,7 +170,8 @@ const MenuItems = () => {
             </div>
           ))
         )}
-      </div>
+        </div>
+      )}
 
       {/* Modal */}
       {showModal && (
