@@ -15,7 +15,6 @@ const Login = () => {
 	const pinLogin = usePinLogin();
 	const navigate = page => {
 		goPage(page);
-		window.location.reload();
 	};
 
 	const onSubmit = async (values, actions) => {
@@ -65,10 +64,12 @@ const Login = () => {
 	});
 
 	return (
-		<div
-			className="w-screen h-full absolute z-[999] top-0 left-0 flex justify-end items-center"
-			style={{
-				backgroundImage: `
+		<div className="w-screen min-h-screen relative z-[999] top-0 left-0 flex justify-center md:justify-end items-center">
+			{/* Background image only on md and up */}
+			<div
+				className="hidden md:block absolute inset-0 z-0"
+				style={{
+					backgroundImage: `
                     linear-gradient(
                         to right,
                         rgba(0,0,0,0) 0%,
@@ -78,13 +79,13 @@ const Login = () => {
                     ),
                     url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1500&q=80')
                 `,
-				backgroundSize: "cover",
-				backgroundPosition: "center",
-				backgroundRepeat: "no-repeat",
-			}}
-		>
-			{/* Centered form container */}
-			<div className="bg-white bg-opacity-90 rounded-lg shadow-lg p-12 min-w-[400px] max-w-md mx-24 flex flex-col items-center h-full min-h-[600px] justify-center">
+					backgroundSize: "cover",
+					backgroundPosition: "center",
+					backgroundRepeat: "no-repeat",
+				}}
+			/>
+			{/* Responsive form container */}
+			<div className="relative z-10 bg-white bg-opacity-100 md:bg-opacity-90 rounded-none md:rounded-lg shadow-none md:shadow-lg p-6 md:p-12 w-full h-screen md:h-auto max-w-md mx-0 md:mx-24 flex flex-col items-center min-h-[420px] md:min-h-[600px] justify-center">
 				<div className="flex mb-6 w-full">
 					<button
 						className={`flex-1 py-2 rounded-l ${

@@ -1,11 +1,6 @@
 import { useCallback } from 'react';
 import api from './api';
-
-const setAuthTokens = (access, refresh) => {
-  localStorage.setItem('token', access);
-  localStorage.setItem('refreshToken', refresh);
-};
-
+import { useAuth } from '../context/AuthContext';
 
 // Login with phone and password
 export const login = async ({ phone, password }) => {
@@ -22,18 +17,20 @@ export const pinLogin = async ({ pin }) => {
 
 // React hook for login
 export function useLogin() {
+  const { login: contextLogin } = useAuth();
   return useCallback(async (phone, password) => {
     const data = await login({ phone, password });
-    setAuthTokens(data.access, data.refresh);
+    contextLogin(data.access, data.refresh);
     return data;
-  }, [setAuthTokens]);
+  }, [contextLogin]);
 }
 
 // React hook for pin login
 export function usePinLogin() {
+  const { login: contextLogin } = useAuth();
   return useCallback(async (pin) => {
     const data = await pinLogin({ pin });
-    setAuthTokens(data.access, data.refresh);
+    contextLogin(data.access, data.refresh);
     return data;
-  }, [setAuthTokens]);
+  }, [contextLogin]);
 }

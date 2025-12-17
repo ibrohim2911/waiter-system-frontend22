@@ -4,7 +4,7 @@ import { useOrders } from "../../hooks/useOrders";
 import OrderCard from "../../components/OrderCard";
 import { getAllTables } from "../../services/tables";
 import { getAllUsers } from "../../services/users";
-import { me as getMe } from "../../services/getMe";
+import { useAuth } from "../../context/AuthContext";
 
 const STATS_API_URL = `${import.meta.env.VITE_BASE_URL}order-stats/`;
 const INITIAL_STATS = {
@@ -68,6 +68,7 @@ const UserFilter = ({ users, stats, selectedUser, onSelect }) => (
 
 const Orders = () => {
 	const { orders, getOrders, loading } = useOrders();
+	const { user } = useAuth();
 	const [orderStatuses, setOrderStatuses] = useState(["pending", "processing"]);
 	const [locations, setLocations] = useState([]);
 	const [selectedLocation, setSelectedLocation] = useState("");
@@ -95,14 +96,17 @@ const Orders = () => {
 			const uniqueLocations = [...new Set(tables.map(t => t.location))].filter(Boolean).sort();
 			setLocations(uniqueLocations);
 		});
-		getMe().then(user => {
-			if (user && (user.role === 'waiter' || user.is_waiter)) {
+	}, []);
+
+	useEffect(() => {
+		if (user) {
+			if (user.role === "waiter" || user.is_waiter) {
 				setIsWaiter(true);
 			} else {
 				getAllUsers().then(users => setUsers(users));
 			}
-		});
-	}, []);
+		}
+	}, [user]);
 
 	useEffect(() => {
 		let params = {
