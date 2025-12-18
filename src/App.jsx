@@ -1,7 +1,6 @@
 import { useAuth } from "./context/AuthContext";
 import { Login } from "./views";
-import { Outlet } from "react-router-dom";
-import { BottomBar } from "./components";
+import AppLayout from "./layouts/AppLayout";
 
 function App() {
 	const { token } = useAuth();
@@ -14,12 +13,7 @@ function App() {
 		);
 	}
 
-	return (
-		<div className="min-h-screen bg-zinc-900">
-			<Outlet />
-			<BottomBar />
-		</div>
-	);
+	return <AppLayout />;
 }
 
 export default App;
