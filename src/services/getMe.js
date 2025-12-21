@@ -5,6 +5,7 @@ export const me = async () => {
     try{
         const response = await api.get("/getme/");
         me = response.data;
+        console.log("me from context: ", me);
     } catch (error) {
         console.error("Error fetching user data:", error); 
     }
