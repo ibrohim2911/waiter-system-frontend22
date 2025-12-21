@@ -22,11 +22,12 @@ const Orders = () => {
 
 	// Fetch stats from backend
 	useEffect(() => {
+		const STATS_API_URL_FIXED = STATS_API_URL;
 		const params = new URLSearchParams();
 		if (orderStatuses.length > 0) {
 			params.append('order_status', orderStatuses.join(','));
 		}
-		fetch(`${STATS_API_URL}?${params.toString()}`)
+		fetch(`${STATS_API_URL_FIXED}?${params.toString()}`)
 			.then(res => res.json())
 			.then(data => {setStats(data)})
 			.catch(() => setStats(INITIAL_STATS));

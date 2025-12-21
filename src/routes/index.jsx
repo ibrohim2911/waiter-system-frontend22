@@ -34,8 +34,13 @@ const router = createBrowserRouter([
 						path: "/inventory",
 						element: <Inventory />,
 					},
+				],
+			},
+			{
+				element: <ProtectedRoute allowedRoles={["admin"]} />,
+				children: [
 					{
-						path: "/inventory/crud",
+						path: "inventory/crud",
 						element: <Crud />,
 					},
 				],
