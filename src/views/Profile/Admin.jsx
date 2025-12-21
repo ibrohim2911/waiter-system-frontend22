@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { me as getMe } from '../../services/getMe';
 import { useAuth } from '../../context/AuthContext';
 import { changePassword } from '../../services/auth';
@@ -122,7 +122,7 @@ const Admin = () => {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-900 text-zinc-100 p-4 md:p-6 mb-14" >
+    <div className="max-h-screen bg-zinc-900 text-zinc-100 p-4 md:p-6 mb-14" >
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="bg-zinc-800 rounded-lg shadow-xl p-4 mb-4">
           <div className="flex flex-col items-center">
@@ -208,6 +208,7 @@ const Admin = () => {
               <p className="text-2xl font-bold text-white">${totalamount.toFixed(2)}</p>
             </div>
           </div>
+          
           {/* User Stats Table */}
           <div className="bg-zinc-800 p-4 rounded-lg shadow-lg mb-6">
             <h3 className="text-lg font-semibold text-zinc-200 mb-3">User Performance</h3>
@@ -240,13 +241,13 @@ const Admin = () => {
           {/* Menu Item Stats */}
           <div className="bg-zinc-800 p-4 rounded-lg shadow-lg">
             <h3 className="text-lg font-semibold text-zinc-200 mb-3">Top Menu Items</h3>
-            <ul className="space-y-2">
+            <ul className="space-y-2 overflow-y-scroll no-scrollbar max-h-80 scrollbar-y-none">
               {orderStats?.menu_items
                 ?.filter(item => item.order_item_count > 0)
                 .sort((a, b) => b.order_item_count - a.order_item_count)
                 .map(item => (
                   <li key={item.menu_item_id} className="flex justify-between items-center bg-zinc-700/50 p-2 rounded">
-                    <span className="font-medium text-zinc-200">{item.name}</span>
+                    <span className="font-medium text-zinc-200 uppercase">{item.name}</span>
                     <span className="font-bold text-blue-400">{item.order_item_count} orders</span>
                   </li>
                 ))
