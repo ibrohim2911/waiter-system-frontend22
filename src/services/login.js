@@ -20,7 +20,7 @@ export function useLogin() {
   const { login: contextLogin } = useAuth();
   return useCallback(async (phone, password) => {
     const data = await login({ phone, password });
-    contextLogin(data.access, data.refresh);
+    contextLogin(data);
     return data;
   }, [contextLogin]);
 }
@@ -30,7 +30,7 @@ export function usePinLogin() {
   const { login: contextLogin } = useAuth();
   return useCallback(async (pin) => {
     const data = await pinLogin({ pin });
-    contextLogin(data.access, data.refresh);
+    contextLogin(data);
     return data;
   }, [contextLogin]);
 }

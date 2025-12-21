@@ -338,7 +338,13 @@ const Users = () => {
 							</div>
 							<div>
 								<label className="block text-zinc-300 text-xs mb-1">Role</label>
-								<input value={form.role} onChange={(e) => handleChange("role", e.target.value)} className="w-full px-3 py-2 bg-zinc-800 rounded border border-zinc-700 text-white text-sm" />
+								<select id="role" value={form.role} onChange={(e) => handleChange("role", e.target.value)} name="role" className="w-full px-3 py-2 bg-zinc-800 rounded border border-zinc-700 text-white text-sm">
+									  <option value="admin">Admin</option>
+									  <option value="waiter">Waiter</option>
+									  <option value="cashier">accountant</option>
+								</select>
+								<label className="block text-zinc-300 text-xs mb-1">pin</label>
+								<input type="text" value={form.pin} onChange={(e) => handleChange("pin", e.target.value)} className="w-full px-3 py-2 bg-zinc-800 rounded border border-zinc-700 text-white text-sm"/>
 							</div>
 
 							<div className="grid grid-cols-2 gap-3">
@@ -346,6 +352,7 @@ const Users = () => {
 									<input type="checkbox" className="w-4 h-4" checked={form.isPinSetted} onChange={(e) => handleChange("isPinSetted", e.target.checked)} />
 									<span className="text-zinc-300">isPinSetted</span>
 								</label>
+
 								<label className="flex items-center gap-2 text-sm">
 									<input type="checkbox" className="w-4 h-4" checked={form.isStaff} onChange={(e) => handleChange("isStaff", e.target.checked)} />
 									<span className="text-zinc-300">IsStaff</span>

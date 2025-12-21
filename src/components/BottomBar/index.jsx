@@ -9,9 +9,9 @@ const BottomBar = () => {
   const navigate = useNavigate();
   // const { logout } = useAuth(); // logout function from context
 
-  if (location.pathname === "/login") {
-    return null;
-  }
+  // if (location.pathname === "/") {
+  //   return null;
+  // }
 
   const goBack = () => {
     navigate(-1);

@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useOrders } from "../../hooks/useOrders";
 import OrderCard from "../../components/OrderCard";
 import { getAllTables } from "../../services/tables";
@@ -8,7 +7,8 @@ import { useAuth } from "../../context/AuthContext";
 
 const STATS_API_URL = `${import.meta.env.VITE_BASE_URL}order-stats/`;
 const INITIAL_STATS = {
-		orders_per_user: [],
+	orders_per_user_per_location: [],
+	orders_per_user: [],
 	pending_order_per_user: [],
 	processing_order_per_user: [],
 	orders_per_table_location: [],
@@ -22,7 +22,6 @@ const LocationFilter = ({ locations, stats, selectedLocation, onSelect, onClear 
 		<div className="text-zinc-300 font-semibold mb-2">Location</div>
 		<div className="space-y-2">
 			{locations.map(location => {
-				const locationStat = stats.orders_per_table_location.find(l => l.table__location === location);
 				const pendingStat = stats.pending_order_per_location.find(l => l.table__location === location);
 				const processingStat = stats.processing_order_per_location.find(l => l.table__location === location);
 				return (
@@ -80,16 +79,12 @@ const Orders = () => {
 
 	// Fetch stats from backend
 	useEffect(() => {
-		const STATS_API_URL_FIXED = STATS_API_URL;
-		const params = new URLSearchParams();
-		if (orderStatuses.length > 0) {
-			params.append('order_status', orderStatuses.join(','));
-		}
-		fetch(`${STATS_API_URL_FIXED}?${params.toString()}`)
+		
+		fetch(`${STATS_API_URL}`)
 			.then(res => res.json())
 			.then(data => {setStats(data)})
 			.catch(() => setStats(INITIAL_STATS));
-	}, [orderStatuses]);
+	}, []);
 
 	useEffect(() => {
 		getAllTables().then(tables => {
@@ -108,6 +103,29 @@ const Orders = () => {
 		}
 	}, [user]);
 
+	const viewStats = useMemo(() => {
+		if (isWaiter && user?.id && stats.orders_per_user_per_location) {
+			const userStats = stats.orders_per_user_per_location.find(
+				(s) => String(s.user_id) === String(user.id)
+			);
+
+			if (userStats) {
+				const pending_order_per_location = userStats.locations.map(loc => ({
+					table__location: loc.location,
+					order_count: loc.pending_count,
+				}));
+
+				const processing_order_per_location = userStats.locations.map(loc => ({
+					table__location: loc.location,
+					order_count: loc.processing_count,
+				}));
+
+				return { ...stats, pending_order_per_location, processing_order_per_location };
+			}
+		}
+		return stats;
+	}, [stats, isWaiter, user]);
+
 	useEffect(() => {
 		let params = {
 			page_size: 0, // Disable pagination on the backend
@@ -120,9 +138,11 @@ const Orders = () => {
 		}
 		if (filterMode === 'user' && selectedUser) {
 			params["user"] = selectedUser;
+		} else if (isWaiter && user?.id) {
+			params["user"] = user.id;
 		}
 		getOrders(params);
-	}, [orderStatuses, selectedLocation, selectedUser, getOrders, filterMode]);
+	}, [orderStatuses, selectedLocation, selectedUser, getOrders, filterMode, isWaiter, user]);
 
 		return (
 			<div className="min-h-screen h-screen bg-zinc-900 pb-15 flex overflow-hidden text-[0.9em]">
@@ -156,14 +176,14 @@ const Orders = () => {
 							{filterMode === 'location' && (
 								<LocationFilter
 									locations={locations}
-									stats={stats}
+									stats={viewStats}
 									selectedLocation={selectedLocation}
 									onSelect={(location) => setSelectedLocation(selectedLocation === location ? "" : location)}
 									onClear={() => setSelectedLocation("")}
 								/>
 							)}
 							{filterMode === 'user' && (
-								<UserFilter users={users} stats={stats} selectedUser={selectedUser} onSelect={setSelectedUser} />
+								<UserFilter users={users} stats={viewStats} selectedUser={selectedUser} onSelect={setSelectedUser} />
 							)}
 						</>
 					)}
@@ -172,7 +192,7 @@ const Orders = () => {
 					{isWaiter && (
 						<LocationFilter
 							locations={locations}
-							stats={stats}
+							stats={viewStats}
 							selectedLocation={selectedLocation}
 							onSelect={(location) => setSelectedLocation(selectedLocation === location ? "" : location)}
 							onClear={() => setSelectedLocation("")}
