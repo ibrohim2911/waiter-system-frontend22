@@ -1,55 +1,52 @@
-import { createContext, useContext, useState, useEffect } from "react"
-import { me } from "../services/getMe"
+import { createContext, useContext, useState, useEffect } from "react";
 
-const AuthContext = createContext()
+const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem("token") || null)
-  const [refreshToken, setRefreshToken] = useState(() => localStorage.getItem("refreshToken") || null)
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [token, setToken] = useState(() => localStorage.getItem("token") || null);
+  const [refreshToken, setRefreshToken] = useState(() => localStorage.getItem("refreshToken") || null);
+  const [user, setUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user")) || null;
+    } catch (e) {
+      return null;
+    }
+  });
+  const [loading, setLoading] = useState(true); // Start loading until initial check is done
 
   useEffect(() => {
-    const fetchUser = async () => {
-      if (token) {
-        try {
-          const userData = await me()
-          setUser(userData)
-        } catch (error) {
-          console.error("Failed to fetch user", error)
-          logout()
-        }
-      } else {
-        setUser(null)
-      }
-      setLoading(false)
-    }
+    // Since state is initialized synchronously from localStorage,
+    // we just need to wait for the first render to pass.
+    // This effect runs once after the initial render.
+    setLoading(false);
+  }, []);
 
-    fetchUser()
-  }, [token])
-
-  const login = (access, refresh) => {
-    setToken(access)
-    setRefreshToken(refresh)
-    localStorage.setItem("token", access)
-    localStorage.setItem("refreshToken", refresh)
-  }
+  const login = (data) => {
+    const { access, refresh, ...userData } = data;
+    setToken(access);
+    setRefreshToken(refresh);
+    setUser(userData);
+    localStorage.setItem("token", access);
+    localStorage.setItem("refreshToken", refresh);
+    localStorage.setItem("user", JSON.stringify(userData));
+  };
 
   const logout = () => {
-    setToken(null)
-    setRefreshToken(null)
-    setUser(null)
-    localStorage.removeItem('token')
-    localStorage.removeItem('refreshToken')
-  }
+    setToken(null);
+    setRefreshToken(null);
+    setUser(null);
+    localStorage.removeItem("token");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("user");
+  };
 
   return (
     <AuthContext.Provider value={{ token, refreshToken, user, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
-  )
+  );
 }
 
 export function useAuth() {
-  return useContext(AuthContext)
+  return useContext(AuthContext);
 }
