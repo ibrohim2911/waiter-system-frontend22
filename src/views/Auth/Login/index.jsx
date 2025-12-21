@@ -19,6 +19,7 @@ const Login = () => {
 
 	const onSubmit = async (values, actions) => {
 		try {
+			navigate("/");
 			await login(values.phone, values.password);
 			navigate("/");
 			actions.resetForm();
