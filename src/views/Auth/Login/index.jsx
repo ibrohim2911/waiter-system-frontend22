@@ -55,6 +55,7 @@ const Login = () => {
 			// PIN submit logic here
 			// Example: navigate('/') if PIN is correct
 			try {
+				navigate("/");
 				await pinLogin(values.pin);
 				navigate("/");
 				actions.resetForm();
