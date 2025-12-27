@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { me as getMe } from '../../services/getMe';
 import { useAuth } from '../../context/AuthContext';
 import { changePassword } from '../../services/auth';
-import { getOrderStats, getUserStats } from '../../services/statistics';
-import { UserCircleIcon, ArrowLeftOnRectangleIcon, ChartBarIcon, CurrencyDollarIcon, ClipboardDocumentListIcon, UsersIcon, TableCellsIcon, CakeIcon } from '@heroicons/react/24/solid';
+import { getAdminReports } from '../../services/inventory';
+import { UserCircleIcon, ArrowLeftOnRectangleIcon, ChartBarIcon, CurrencyDollarIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/solid';
 import { format } from 'date-fns';
 import { DateRangePicker } from '../../components';
 
@@ -12,8 +12,7 @@ const Admin = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
-  const [orderStats, setOrderStats] = useState(null);
-  const [userStats, setUserStats] = useState([]);
+  const [adminReport, setAdminReport] = useState(null);
   const [error, setError] = useState('');
   const [statsPeriod, setStatsPeriod] = useState({ period: "day", startDate: new Date(), endDate: new Date() });
   const [passwords, setPasswords] = useState({
@@ -24,29 +23,8 @@ const Admin = () => {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
 
-  // const handlePeriodChange = (period) => {
-  //   const now = new Date();
-  //   let startDate = now;
-  //   let endDate = now;
-  //   let newPeriod = period;
-
-  //   if (period === 'week') {
-  //     startDate = startOfWeek(now);
-  //     endDate = endOfWeek(now);
-  //   } else if (period === 'month') {
-  //     startDate = startOfMonth(now);
-  //     endDate = endOfMonth(now);
-  //   } else if (period === 'custom') {
-  //     // For custom, we don't change dates here, user picks them.
-  //     // We just set the period.
-  //   }
-  //   // For 'day', default values are correct.
-
-  //   setStatsPeriod({ period: newPeriod, startDate, endDate });
-  // };
-
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchUserAndStats = async () => {
       try {
         setLoading(true);
         const userData = await getMe();
@@ -60,13 +38,9 @@ const Admin = () => {
           params.start_time = `${format(statsPeriod.startDate, 'yyyy-MM-dd')}T00:00:00`;
           params.end_time = `${format(statsPeriod.endDate, 'yyyy-MM-dd')}T23:59:59`;
         }
-
-        const [orderData, usersData] = await Promise.all([
-          getOrderStats(params),
-          getUserStats(params)
-        ]);
-        setOrderStats(orderData); // Assuming orderData is the full object
-        setUserStats(usersData.user_stats || []); // Access the nested user_stats array
+        
+        const reportData = await getAdminReports(params.period);
+        setAdminReport(reportData);
 
       } catch (err) {
         setError('Failed to fetch data.');
@@ -76,7 +50,7 @@ const Admin = () => {
         setStatsLoading(false);
       }
     };
-    fetchUser();
+    fetchUserAndStats();
   }, [statsPeriod]);
 
   const handlePasswordInputChange = (e) => {
@@ -99,7 +73,6 @@ const Admin = () => {
       setPasswordSuccess('Password changed successfully!');
       setPasswords({ old_password: '', new_password: '', confirm_password: '' }); // Clear fields on success
     } catch (err) {
-      // Handle potential error messages from the API
       if (err && typeof err === 'object' && err.detail) {
         setPasswordError(err.detail);
       } else if (err && typeof err === 'object' && err.error) {
@@ -110,9 +83,7 @@ const Admin = () => {
       console.error(err);
     }
   };
-  const totalamount = orderStats?.all_data?.[0]?.all_amount || 0;
-  const totalEarned = orderStats?.all_data?.[0]?.all_earned || 0;
-  const totalearned4 = totalEarned * 0.4
+
   if (loading || statsLoading) {
     return <div className="text-center text-zinc-300 p-10">Loading profile...</div>;
   }
@@ -182,34 +153,31 @@ const Admin = () => {
         <div className="lg:col-span-3">
           <div className="flex flex-wrap items-center justify-between mb-4 gap-4">
             <h2 className="text-2xl font-bold text-zinc-200 flex items-center gap-2"><ChartBarIcon className="h-6 w-6" /> Statistics </h2>
-            {/* Period Filter */}
             <div className="flex flex-wrap items-center gap-4">
               <DateRangePicker onChange={setStatsPeriod} />
             </div>
           </div>
 
-          {/* General Stats */}
-          <div className="mb-6 flex gap-6 justify-around">
+          <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-zinc-800 p-4 rounded-lg shadow-lg text-center">
-              <CurrencyDollarIcon className="h-8 w-8 mx-auto text-green-400 mb-2" /><br />
-              <p className="text-zinc-400 text-sm">Total Earned</p>
-              <p className="text-2xl font-bold text-white">${totalEarned.toFixed(2)}</p>
+              <CurrencyDollarIcon className="h-8 w-8 mx-auto text-green-400 mb-2" />
+              <p className="text-zinc-400 text-sm">Total Spent</p>
+              <p className="text-2xl font-bold text-white">${(adminReport?.total_spent / 100 || 0).toFixed(2)}</p>
             </div>
 
             <div className="bg-zinc-800 p-4 rounded-lg shadow-lg text-center">
-              <CurrencyDollarIcon className="h-8 w-8 mx-auto text-green-400 mb-2" /><br />
-              <p className="text-zinc-400 text-sm">Total Earned</p>
-              <p className="text-2xl font-bold text-white">${totalearned4.toFixed(2)}</p>
+              <CurrencyDollarIcon className="h-8 w-8 mx-auto text-yellow-400 mb-2" />
+              <p className="text-zinc-400 text-sm">Total Profit</p>
+              <p className="text-2xl font-bold text-white">${(adminReport?.total_profit / 100 || 0).toFixed(2)}</p>
             </div>
 
             <div className="bg-zinc-800 p-4 rounded-lg shadow-lg text-center">
-              <CurrencyDollarIcon className="h-8 w-8 mx-auto text-green-400 mb-2" /><br />
-              <p className="text-zinc-400 text-sm">Total Amount</p>
-              <p className="text-2xl font-bold text-white">${totalamount.toFixed(2)}</p>
+              <ClipboardDocumentListIcon className="h-8 w-8 mx-auto text-blue-400 mb-2" />
+              <p className="text-zinc-400 text-sm">Total Orders</p>
+              <p className="text-2xl font-bold text-white">{adminReport?.order_count || 0}</p>
             </div>
           </div>
           
-          {/* User Stats Table */}
           <div className="bg-zinc-800 p-4 rounded-lg shadow-lg mb-6">
             <h3 className="text-lg font-semibold text-zinc-200 mb-3">User Performance</h3>
             <div className="overflow-x-auto">
@@ -217,44 +185,22 @@ const Admin = () => {
                 <thead className="text-xs text-zinc-400 uppercase bg-zinc-700">
                   <tr>
                     <th scope="col" className="px-4 py-2">User</th>
-                    <th scope="col" className="px-4 py-2 text-right">Completed</th>
-                    <th scope="col" className="px-4 py-2 text-right">Pending</th>
-                    <th scope="col" className="px-4 py-2 text-right">Commission</th>
-                    <th scope="col" className="px-4 py-2 text-right">Total Earned</th>
+                    <th scope="col" className="px-4 py-2 text-right">Order Count</th>
+                    <th scope="col" className="px-4 py-2 text-right">Total Spent</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {userStats.map(u => (
-                    <tr key={u.id} className="border-b border-zinc-700 hover:bg-zinc-700/50">
-                      <td className="px-4 py-2 font-medium">{u.name}</td>
-                      <td className="px-4 py-2 text-right">{u.completed_order_count}</td>
-                      <td className="px-4 py-2 text-right">{u.non_completed_order_count}</td>
-                      <td className="px-4 py-2 text-right">${u.earned.toFixed(2)}</td>
-                      <td className="px-4 py-2 text-right font-semibold">${u.total_earned.toFixed(2)}</td>
+                  {adminReport?.waiter_stats?.map(u => (
+                    <tr key={u.waiter_id || 'unassigned'} className="border-b border-zinc-700 hover:bg-zinc-700/50">
+                      <td className="px-4 py-2 font-medium">{u.name || 'Unassigned'}</td>
+                      <td className="px-4 py-2 text-right">{u.order_count}</td>
+                      <td className="px-4 py-2 text-right font-semibold">${(u.total_spent / 100).toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           </div>
-
-          {/* Menu Item Stats */}
-          <div className="bg-zinc-800 p-4 rounded-lg shadow-lg">
-            <h3 className="text-lg font-semibold text-zinc-200 mb-3">Top Menu Items</h3>
-            <ul className="space-y-2 overflow-y-scroll no-scrollbar max-h-80 scrollbar-y-none">
-              {orderStats?.menu_items
-                ?.filter(item => item.order_item_count > 0)
-                .sort((a, b) => b.order_item_count - a.order_item_count)
-                .map(item => (
-                  <li key={item.menu_item_id} className="flex justify-between items-center bg-zinc-700/50 p-2 rounded">
-                    <span className="font-medium text-zinc-200 uppercase">{item.name}</span>
-                    <span className="font-bold text-blue-400">{item.order_item_count} orders</span>
-                  </li>
-                ))
-              }
-            </ul>
-          </div >
-
         </div>
       </div>
     </div>

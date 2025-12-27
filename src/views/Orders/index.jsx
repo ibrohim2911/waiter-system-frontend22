@@ -4,8 +4,8 @@ import OrderCard from "../../components/OrderCard";
 import { getAllTables } from "../../services/tables";
 import { getAllUsers } from "../../services/users";
 import { useAuth } from "../../context/AuthContext";
+import { fetchOrderStats } from "../../services/orderStats";
 
-const STATS_API_URL = `${import.meta.env.VITE_BASE_URL}order-stats/`;
 const INITIAL_STATS = {
 	orders_per_user_per_location: [],
 	orders_per_user: [],
@@ -19,19 +19,19 @@ const INITIAL_STATS = {
 
 const LocationFilter = ({ locations, stats, selectedLocation, onSelect, onClear }) => (
 	<div className="mb-3">
-		<div className="text-zinc-300 font-semibold mb-2">Location</div>
-		<div className="space-y-2">
+		<div className="text-zinc-300  font-semibold mb-2">Location</div>
+		<div className="space-y-2" >
 			{locations.map(location => {
 				const pendingStat = stats.pending_order_per_location.find(l => l.table__location === location);
 				const processingStat = stats.processing_order_per_location.find(l => l.table__location === location);
 				return (
 					<div
 						key={location}
-						className={`cursor-pointer rounded-lg p-2 transition-all border-2 flex items-center justify-between ${selectedLocation === location ? "bg-blue-600 border-blue-400 text-white" : "bg-zinc-700 border-zinc-600 text-zinc-200 hover:bg-zinc-600"}`}
+						className={`cursor-pointer h-10 rounded-lg p-2 transition-all border-2 flex items-center justify-between ${selectedLocation === location ? "bg-blue-600 border-blue-400 text-white" : "bg-zinc-700 border-zinc-600 text-zinc-200 hover:bg-zinc-600"}`}
 						onClick={() => onSelect(location)}
 					>
 						<span>{location}</span>
-						<span className="ml-2 text-xs font-bold text-blue-300">{pendingStat?.order_count || 0} / {processingStat?.order_count || 0}</span>
+						<span className="ml-2 text-xs font-bold text-blue-300">{pendingStat?.pending_orders || 0} / {processingStat?.processing_orders || 0}</span>
 					</div>
 				);
 			})}
@@ -48,8 +48,10 @@ const UserFilter = ({ users, stats, selectedUser, onSelect }) => (
 		<div className="text-zinc-300 font-semibold mb-2">User</div>
 		<div className="space-y-2">
 			{users.map(user => {
-				const pending = stats.pending_order_per_user.find(u => String(u.user_id) === String(user.id));
-				const processing = stats.processing_order_per_user.find(u => String(u.user_id) === String(user.id));
+				const pending = stats.pending_order_per_user.find(u => String(u.id) === String(user.id));
+				const processing = stats.processing_order_per_user.find(u => String(u.id) === String(user.id));
+				console.log(stats);
+				
 				return (
 					<div
 						key={user.id}
@@ -77,14 +79,16 @@ const Orders = () => {
 	const [isWaiter, setIsWaiter] = useState(false);
 	const [stats, setStats] = useState(INITIAL_STATS);
 
-	// Fetch stats from backend
-	useEffect(() => {
-		
-		fetch(`${STATS_API_URL}`)
-			.then(res => res.json())
-			.then(data => {setStats(data)})
-			.catch(() => setStats(INITIAL_STATS));
-	}, []);
+	useEffect(()=> {
+		const fetchData = async () => {
+			const params = {
+				"period" : "alltime",
+			}
+			let data = await fetchOrderStats(params)
+			setStats(data.data);
+		}
+		fetchData()
+	}, [])
 
 	useEffect(() => {
 		getAllTables().then(tables => {
@@ -155,7 +159,7 @@ const Orders = () => {
 						<>
 							<div className="flex gap-2 mb-3">
 								<button
-									className={`flex-1 py-1 rounded text-xs font-semibold border ${filterMode === 'location' ? 'bg-blue-600 text-white' : 'bg-zinc-700 text-zinc-200'} transition`}
+									className={`flex-1 h-8 py-1 rounded text-xs font-semibold border ${filterMode === 'location' ? 'bg-blue-600 text-white' : 'bg-zinc-700 text-zinc-200'} transition`}
 									onClick={() => {
 										setFilterMode('location');
 										setSelectedUser(""); // Clear user filter when switching

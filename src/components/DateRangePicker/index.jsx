@@ -10,6 +10,13 @@ const DateRangePicker = ({ onChange }) => {
   const [isTouch, setIsTouch] = useState(false);
 
   const handlePeriodChange = (newPeriod) => {
+    if (newPeriod === 'limitless') {
+      setPeriod('limitless');
+      setStartDate(null);
+      setEndDate(null);
+      onChange({ period: 'alltime', startDate: null, endDate: null });
+      return;
+    }
     const now = new Date();
     let start = now;
     let end = now;
@@ -100,7 +107,7 @@ const DateRangePicker = ({ onChange }) => {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
       <div className="flex items-center gap-2 bg-zinc-800 p-1 rounded-lg">
-        {['day', 'week', 'month'].map((p) => (
+        {['day', 'week', 'month', 'limitless'].map((p) => (
           <button
 
             key={p}

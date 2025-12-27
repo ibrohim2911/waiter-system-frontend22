@@ -50,7 +50,6 @@ const Users = () => {
 		phone: "",
 		email: "",
 		role: "",
-		isPinSetted: false,
 		isStaff: false,
 		isActive: true,
 		isSuperuser: false,
@@ -91,7 +90,6 @@ const Users = () => {
 					phone_number: form.phone,
 					email: form.email,
 					role: form.role,
-					is_pin_setted: form.isPinSetted,
 					is_staff: form.isStaff,
 					is_active: form.isActive,
 					is_superuser: form.isSuperuser,
@@ -100,17 +98,17 @@ const Users = () => {
 				setUsers((prev) => prev.map((u) => (String(u.id) === String(editingUser.id) ? updated : u)));
 				setEditingUser(null);
 				setShowModal(false);
-				setForm({ name: "", phone: "", email: "", role: "", isPinSetted: false, isStaff: false, isActive: true, isSuperuser: false });
+				setForm({ name: "", phone: "", email: "", role: "",	 isStaff: false, isActive: true, isSuperuser: false });
 			} else {
 				const payload = {
 					name: form.name,
-					phone: form.phone,
-					email: form.email,
+					phone_number: form.phone,
+					email: form.email == "" && null,
 					role: form.role,
-					is_pin_setted: form.isPinSetted,
 					is_staff: form.isStaff,
 					is_active: form.isActive,
 					is_superuser: form.isSuperuser,
+					pin: form.pin,
 				};
 				const newUser = await createUser(payload);
 				setUsers((prev) => [newUser, ...prev]);
@@ -132,7 +130,6 @@ const Users = () => {
 			phone: safe(user, "phone", "phone_number", "mobile") || "",
 			email: safe(user, "email") || "",
 			role: safe(user, "role", "user_role") || "",
-			isPinSetted: boolVal(user, "isPinSetted", "is_pin_setted", "is_pin_set", "is_pin"),
 			isStaff: boolVal(user, "isStaff", "is_staff", "staff", "is_waiter"),
 			isActive: boolVal(user, "isActive", "is_active", "active"),
 			isSuperuser: boolVal(user, "IsSuperuser", "is_superuser", "is_super_admin", "is_superuser"),
@@ -182,7 +179,6 @@ const Users = () => {
 							<th className="px-4 py-3">Phone</th>
 							<th className="px-4 py-3">Email</th>
 							<th className="px-4 py-3">Role</th>
-							<th className="px-4 py-3">isPinSetted</th>
 							<th className="px-4 py-3">IsStaff</th>
 							<th className="px-4 py-3">IsActive</th>
 							<th className="px-4 py-3">IsSuperuser</th>
@@ -226,9 +222,7 @@ const Users = () => {
 										<td className="px-4 py-3 text-zinc-200">{phone}</td>
 										<td className="px-4 py-3 text-zinc-200">{email}</td>
 										<td className="px-4 py-3 text-zinc-200">{role}</td>
-										<td className="px-4 py-3">
-											<Indicator value={isPinSetted} label="isPinSetted" />
-										</td>
+											
 										<td className="px-4 py-3">
 											<Indicator value={isStaff} label="IsStaff" />
 										</td>
@@ -267,8 +261,7 @@ const Users = () => {
 						const phone = safe(u, "phone", "phone_number", "mobile") || "-";
 						const email = safe(u, "email") || "-";
 						const role = safe(u, "role", "user_role") || (u?.groups ? (u.groups[0]?.name || "-") : "-");
-
-						const isPinSetted = boolVal(u, "isPinSetted", "is_pin_setted", "is_pin_set", "is_pin");
+ 
 						const isStaff = boolVal(u, "isStaff", "is_staff", "staff", "is_waiter");
 						const isActive = boolVal(u, "isActive", "is_active", "active");
 						const isSuperuser = boolVal(u, "IsSuperuser", "is_superuser", "is_super_admin", "is_superuser");
@@ -286,11 +279,7 @@ const Users = () => {
 									</div>
 								</div>
 								<div className="mt-3 grid grid-cols-4 gap-2">
-									<div className="flex flex-col items-center">
-										<Indicator value={isPinSetted} label="isPinSetted" />
-										<div className="text-zinc-300 text-xs mt-1">Pin</div>
-									</div>
-									<div className="flex flex-col items-center">
+ 									<div className="flex flex-col items-center">
 										<Indicator value={isStaff} label="IsStaff" />
 										<div className="text-zinc-300 text-xs mt-1">Staff</div>
 									</div>
@@ -348,11 +337,7 @@ const Users = () => {
 							</div>
 
 							<div className="grid grid-cols-2 gap-3">
-								<label className="flex items-center gap-2 text-sm">
-									<input type="checkbox" className="w-4 h-4" checked={form.isPinSetted} onChange={(e) => handleChange("isPinSetted", e.target.checked)} />
-									<span className="text-zinc-300">isPinSetted</span>
-								</label>
-
+ 
 								<label className="flex items-center gap-2 text-sm">
 									<input type="checkbox" className="w-4 h-4" checked={form.isStaff} onChange={(e) => handleChange("isStaff", e.target.checked)} />
 									<span className="text-zinc-300">IsStaff</span>
