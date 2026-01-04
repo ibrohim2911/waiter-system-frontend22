@@ -134,7 +134,7 @@ const DateRangePicker = ({ onChange }) => {
               type="date"
               value={toInputDate(startDate)}
               onChange={handleNativeStart}
-              className="bg-zinc-700 text-white p-3 rounded-md w-40 text-center appearance-none"
+              className="bg-zinc-700 text-white p-3 rounded-md w-30 text-center appearance-none"
               aria-label="Start date"
             />
             <span className="text-zinc-400 px-1">to</span>
@@ -143,7 +143,7 @@ const DateRangePicker = ({ onChange }) => {
               value={toInputDate(endDate)}
               onChange={handleNativeEnd}
               min={toInputDate(startDate)}
-              className="bg-zinc-700 text-white p-3 rounded-md w-40 text-center appearance-none"
+              className="bg-zinc-700 text-white p-3 rounded-md w-30 text-center appearance-none"
               aria-label="End date"
             />
           </>

@@ -112,16 +112,17 @@ const Orders = () => {
 			const userStats = stats.orders_per_user_per_location.find(
 				(s) => String(s.user_id) === String(user.id)
 			);
-
+			console.log();
+			
 			if (userStats) {
 				const pending_order_per_location = userStats.locations.map(loc => ({
 					table__location: loc.location,
-					order_count: loc.pending_count,
+					order_count: loc.pending_orders,
 				}));
 
 				const processing_order_per_location = userStats.locations.map(loc => ({
 					table__location: loc.location,
-					order_count: loc.processing_count,
+					order_count: loc.processing_orders,
 				}));
 
 				return { ...stats, pending_order_per_location, processing_order_per_location };
